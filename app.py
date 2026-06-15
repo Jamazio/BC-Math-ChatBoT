@@ -246,29 +246,24 @@ UI_TEXT = {
 }
 
 
-
 # --- 3. Initialize Session State Variables ---
-
 if "language" not in st.session_state:
-
     st.session_state.language = "English"
-
 if "messages" not in st.session_state:
-
     st.session_state.messages = []
-
+    st.session_state.shown_resources = set()
 if "equation_draft" not in st.session_state:
-
     st.session_state.equation_draft = ""
-
 if "quick_prompt" not in st.session_state:
+    st.session_state.quick_prompt = None  
+if "shown_resources" not in st.session_state:
+    st.session_state.shown_resources = set()
 
-    st.session_state.quick_prompt = None  # Safely handles button clicks
-
-
+# 🆕 ADD THIS LINE BELOW TO TRACK CUSTOM PERSONALITY STYLE:
+if "custom_style" not in st.session_state:
+    st.session_state.custom_style = ""
 
 # Load active language dictionary
-
 lang = UI_TEXT[st.session_state.language]
 
 
@@ -284,6 +279,14 @@ with st.sidebar:
     ["English", "Español", "Français", "Deutsch"],
     key="language"
     )
+
+     # 🆕 ADD THIS TEXT INPUT DIRECTLY HERE:
+    st.text_input(
+        "🎭 Custom Persona / Style:",
+        placeholder="e.g., Southern style, surfer slang, hyper energetic...",
+        key="custom_style"
+    )
+
 
     st.write("---")
 
@@ -340,19 +343,13 @@ with st.sidebar:
 
 
     st.write("---")
-
-    
-
     st.header(lang["ctrl_header"])
-
     st.info(lang["ctrl_info"])
 
     
 
     if st.button(lang["reset_btn"], use_container_width=True):
-
         st.session_state.messages = []
-
         st.rerun()
 
 
@@ -388,59 +385,110 @@ if col4.button(lang["ql_4_btn"], use_container_width=True): st.session_state.qui
 st.write("---")
 
 
-
 # --- 7. Load Custom Campus Information ---
-
 try:
-
     with open("benedict_info.txt", "r", encoding="utf-8") as file:
-
         campus_knowledge_base = file.read()
-
 except FileNotFoundError:
+    campus_knowledge_base = "No supplementary historical documents found."
 
-    campus_knowledge_base = "No supplementary historical documents found in the root directory."
 
+def get_math_resources(text):
+    # This function scans both the user's input AND the AI's response
+    q = text.lower()
 
+    # 📚 THE "ANY MATH" MEGA-DICTIONARY
+    # We use short root words (like "equat" for equation/equations, "alg" for algebra/algebraic)
+    resource_map = {
+        # 1. ALGEBRA & BASIC EQUATIONS
+        "alg": [("Khan Academy Algebra", "https://www.khanacademy.org/math/algebra")],
+        "equat": [("Solving Equations Guide", "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:solve-equations-inequalities")],
+        "solve": [("Equation Solver Tips", "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:solve-equations-inequalities")],
+        "slope": [("Slope & Linear Equations", "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:forms-of-linear-equations")],
+        "graph": [("Desmos Graphing Calculator", "https://www.desmos.com/calculator")],
+        "polynom": [("Polynomials Overview", "https://www.khanacademy.org/math/algebra2/x2ec2f6f830c9fb89:poly-arithmetic")],
+        "quadrat": [("Quadratic Functions", "https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:quadratic-functions-equations")],
+        "fraction": [("Fractions Help", "https://www.khanacademy.org/math/arithmetic/fraction-arithmetic")],
+        
+        # 2. CALCULUS
+        "calc": [("Khan Academy Calculus", "https://www.khanacademy.org/math/calculus-1")],
+        "deriv": [
+            ("Khan Academy Derivatives", "https://www.khanacademy.org/math/differential-calculus"),
+            ("Paul’s Calculus Notes", "https://tutorial.math.lamar.edu/Classes/CalcI/DerivativeIntro.aspx")
+        ],
+        "integ": [
+            ("Khan Academy Integrals", "https://www.khanacademy.org/math/integral-calculus"),
+            ("Paul’s Integration Guide", "https://tutorial.math.lamar.edu/Classes/CalcI/DefiniteIntegrals.aspx")
+        ],
+        "limit": [("Calculus Limits", "https://www.khanacademy.org/math/ap-calculus-ab/ab-limits-new")],
+        
+        # 3. TRIGONOMETRY & GEOMETRY
+        "trig": [
+            ("Khan Academy Trigonometry", "https://www.khanacademy.org/math/trigonometry"),
+            ("Paul’s Online Notes - Trig", "https://tutorial.math.lamar.edu/Classes/Alg/TrigIntro.aspx")
+        ],
+        "geom": [("Khan Academy Geometry", "https://www.khanacademy.org/math/geometry")],
+        "sin": [("Trig Ratios (Sine/Cosine/Tan)", "https://www.khanacademy.org/math/trigonometry/trigonometry-right-triangles")],
+        "cos": [("Trig Ratios (Sine/Cosine/Tan)", "https://www.khanacademy.org/math/trigonometry/trigonometry-right-triangles")],
+        "tan": [("Trig Ratios (Sine/Cosine/Tan)", "https://www.khanacademy.org/math/trigonometry/trigonometry-right-triangles")],
+        
+        # 4. STATISTICS & PROBABILITY
+        "stat": [
+            ("Stat Trek", "https://stattrek.com/"),
+            ("Khan Academy Stats", "https://www.khanacademy.org/math/statistics-probability")
+        ],
+        "prob": [("Probability Rules", "https://www.khanacademy.org/math/statistics-probability/probability-library")],
+        "data": [("Data Distributions", "https://www.khanacademy.org/math/statistics-probability/displaying-describing-data")],
+        
+        # 5. ADVANCED MATH
+        "matrix": [("Linear Algebra & Matrices", "https://www.khanacademy.org/math/linear-algebra")],
+        "matric": [("Linear Algebra & Matrices", "https://www.khanacademy.org/math/linear-algebra")],
+        "vector": [("Vectors Guide", "https://www.khanacademy.org/math/linear-algebra/vectors-and-spaces")]
+    }
+
+    raw_results = []
+    
+    # Check if any of our root words are in the text
+    for key, links in resource_map.items():
+        if key in q:
+            raw_results.extend(links)
+
+    # Filter out duplicate links just in case multiple keywords trigger the same source
+    unique_results = []
+    seen_urls = set()
+    for title, url in raw_results:
+        if url not in seen_urls:
+            unique_results.append((title, url))
+            seen_urls.add(url)
+
+    return unique_results
 
 # --- 8. Construct Socratic Prompt ---
 
-SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.
-
+# 🆕 Dynamically append custom instructions if the user typed anything
+style_instruction = f"\n- PERSONALITY/TONE MODIFIER: Adhere to this specific presentation style or persona: {st.session_state.custom_style}." if st.session_state.custom_style else ""
+SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
 
 
 CRITICAL LANGUAGE REQUIREMENT:
-
 {lang["sys_prompt"]} Everything you output must strictly match this language constraint.
 
 
 
 🔴 CAMPUS KNOWLEDGE EXCEPTION:
-
 - If the user asks general questions about Benedict College, step out of math mode entirely.
-
 - Answer these questions accurately using ONLY the information provided in the VERIFIED CAMPUS DATA below. Do NOT use the Socratic method for these topics.
 
-
-
 📋 VERIFIED CAMPUS DATA FROM REPOSITORY:
-
 {campus_knowledge_base}
 
-
-
 📐 MATHEMATICS DIRECTIVES:
-
 - CRITICAL DIRECTIVE: For all math problems, NEVER give the user the final solution or write out a complete step-by-step answer upfront. Your core job is to guide them to discover it.
 
   1. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question to guide the student.
-
   2. If the user says they are completely stuck, provide a brief micro-explanation of the underlying rule.
-
   3. Keep responses highly interactive and conversational. Never write long blocks of text.
-
   4. If they make an error, point out the breakdown in logic gently.
-
   5. Only confirm the final answer after they have calculated it themselves.
 
 """
@@ -450,97 +498,93 @@ CRITICAL LANGUAGE REQUIREMENT:
 # --- 9. Render Existing Chat History ---
 
 for message in st.session_state.messages:
-
     with st.chat_message(message["role"]):
-
         st.markdown(message["content"])
-
 
 
 # --- 10. Handle Input (Chat Box OR Quick Load Buttons) ---
 
-# Determine where the query is coming from
-
 user_query = st.chat_input(lang["chat_placeholder"])
 
-
-
-# If a quick-load button was pressed, override the empty chat_input with the button's message
-
+# Quick-load buttons
 if st.session_state.quick_prompt:
-
     user_query = st.session_state.quick_prompt
+    st.session_state.quick_prompt = None
 
-    st.session_state.quick_prompt = None # Reset the trigger
-
-
-
-# Process the query
 
 if user_query:
 
-    st.session_state.messages.append({"role": "user", "content": user_query})
+    # Save user message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_query
+    })
 
     with st.chat_message("user"):
-
         st.markdown(user_query)
 
-        
-
-    formatted_messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
-
+    # Build conversation context
+    formatted_messages = [
+        {"role": "system", "content": SYSTEM_INSTRUCTION}
+    ]
     for msg in st.session_state.messages:
-
         formatted_messages.append({"role": msg["role"], "content": msg["content"]})
-
-        
 
     with st.chat_message("assistant"):
 
         response_placeholder = st.empty()
-
         full_response = ""
-
         
+        # Track links we have already shown in this turn to avoid duplicates
+        seen_urls = set()
+
+        # 🧠 Step 1: Scan user query for instant reference links
+        user_resources = get_math_resources(user_query)
+        if user_resources:
+            full_response += "📚 **Quick References:**\n"
+            for title, url in user_resources:
+                full_response += f"• [{title}]({url})\n"
+                seen_urls.add(url)
+            full_response += "\n---\n\n"
 
         try:
-
             client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-            
-
             response_stream = client.chat.completions.create(
-
                 model="llama-3.3-70b-versatile",
-
                 messages=formatted_messages,
-
                 temperature=0.6,
-
                 stream=True
-
             )
 
-            
-
+            # 🤖 Step 2: Stream the AI's Socratic guidance
             for chunk in response_stream:
-
-                if chunk.choices[0].delta.content:
-
-                    full_response += chunk.choices[0].delta.content
-
+                content = getattr(chunk.choices[0].delta, "content", None)
+                if content:
+                    full_response += content
                     response_placeholder.markdown(full_response + "▌")
 
-                    
+            # 🧠 Step 3: Scan what the AI said and append new links
+            ai_resources = get_math_resources(full_response)
+            
+            # Filter out links that were already added during Step 1
+            new_resources = [res for res in ai_resources if res[1] not in seen_urls]
 
+            if new_resources:
+                # Append a footer section to the response
+                full_response += "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
+                for title, url in new_resources:
+                    full_response += f"• [{title}]({url})\n"
+
+            # Final static render of everything combined
             response_placeholder.markdown(full_response)
 
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-            
+            # Save the comprehensive response to session state
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": full_response
+            })
 
         except Exception as e:
-
             st.error(lang["error_msg"])
-
-            st.info("Technical details: " + str(e))
+            st.info(str(e))
