@@ -184,17 +184,40 @@ with st.sidebar:
     def add_symbol(sym): st.session_state.equation_draft += sym
     def clear_equation(): st.session_state.equation_draft = ""
 
-    # Composer Row Component Input Box and Clear Button
-    draft_col, clear_col = st.columns([4, 1])
+    # 🛠️ Updated Composer Row: Input Box, Clipboard Copy Button, and Clear Button
+    draft_col, copy_col, clear_col = st.columns([6, 1, 1])
     with draft_col:
         st.text_input(lang["eq_composer"], key="equation_draft", label_visibility="collapsed")
+        
+    with copy_col:
+        # Sanitize draft content strings safely for JavaScript ingestion 
+        safe_copy_text = st.session_state.equation_draft.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+        st.markdown(f"""
+            <button onclick="navigator.clipboard.writeText('{safe_copy_text}')" style="
+                background-color: #4C145E;
+                color: #FFD700;
+                border: 2px solid #FFD700;
+                border-radius: 8px;
+                font-weight: bold;
+                width: 100%;
+                height: 42px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 16px;
+                transition: all 0.3s ease;
+                margin: 0;
+                padding: 0;
+            " onmouseover="this.style.backgroundColor='#FFD700'; this.style.color='#4C145E'; this.style.borderColor='#4C145E';" 
+               onmouseout="this.style.backgroundColor='#4C145E'; this.style.color='#FFD700'; this.style.borderColor='#FFD700';"
+               title="Copy to Clipboard">
+                📋
+            </button>
+        """, unsafe_allow_html=True)
+        
     with clear_col:
         st.button("❌", on_click=clear_equation, use_container_width=True)
-
-    # 📋 Native Instant Clipboard Copy Block
-    if st.session_state.equation_draft:
-        st.caption("📋 Click button on the right to copy expression:")
-        st.code(st.session_state.equation_draft, language="text")
 
     # Math Toolbar Category Layout Tabs
     math_tabs = st.tabs(["➕ Alg", "📈 Calc", "📊 Stat", "📐 Trig"])
