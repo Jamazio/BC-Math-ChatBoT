@@ -1,6 +1,7 @@
 import streamlit as st
 from groq import Groq
 import math
+import re
 
 # =====================================
 # 1. PAGE SETUP & CONFIG
@@ -172,14 +173,12 @@ lang = UI_TEXT[st.session_state.language]
 # 4. SIDEBAR CONFIGURATION (CALCULATOR)
 # =====================================
 with st.sidebar:
-    # Prominent Language Selector
     st.radio(
         "🌍 Choose Language",
         ["English", "Español", "Français", "Deutsch"],
         key="language"
     )
 
-    # Custom Personality Style Input
     st.text_input(
         "🎭 Custom Persona / Style:",
         placeholder="e.g., Southern style, surfer slang, hyper energetic...",
@@ -188,7 +187,6 @@ with st.sidebar:
 
     st.write("---")
 
-    # Advanced Calculator Header
     st.header(lang["calc_header"])
     st.caption(lang["calc_caption"])
 
@@ -196,7 +194,11 @@ with st.sidebar:
     def append_calc(char):
         if st.session_state.calc_expression in ["Error", "0"]:
             st.session_state.calc_expression = ""
-        st.session_state.calc_expression += str(char)
+        # If user clicks 1/x, append a structured reciprocal fraction syntax
+        if char == "1/x":
+            st.session_state.calc_expression += "1/("
+        else:
+            st.session_state.calc_expression += str(char)
 
     def clear_calc():
         st.session_state.calc_expression = ""
@@ -209,21 +211,38 @@ with st.sidebar:
 
     def evaluate_calc():
         try:
-            # Map visual presentation elements to evaluable math statements safely
             expr = st.session_state.calc_expression
-            expr = expr.replace("×", "*").replace("÷", "/")
-            expr = expr.replace("^", "**").replace("√(", "math.sqrt(")
-            expr = expr.replace("π", "math.pi").replace("e", "math.e")
-            expr = expr.replace("sin(", "math.sin(").replace("cos(", "math.cos(").replace("tan(", "math.tan(")
-            expr = expr.replace("log(", "math.log10(").replace("ln(", "math.log(")
+            if not expr:
+                return
 
-            if expr:
-                # Context scope dict for processing clean evaluations
-                allowed_env = {"math": math, "__builtins__": None}
-                result = eval(expr, allowed_env, {})
-                if isinstance(result, float) and result.is_integer():
-                    result = int(result)
-                st.session_state.calc_expression = str(result)
+            # Replace clean visual symbols with math operators
+            expr = expr.replace("×", "*").replace("÷", "/")
+            expr = expr.replace("π", "math.pi").replace("e", "math.e")
+
+            # 🛠️ FIX: Smart Regex Parsing for Implicit Multiplication (e.g., "8tan(" -> "8*tan(")
+            # Rule A: Insert '*' between a digit/constant and a letter or opening parenthesis
+            expr = re.sub(r'(\d|math\.pi|math\.e)\s*([a-zA-Z\(])', r'\1*\2', expr)
+            # Rule B: Insert '*' between a closing parenthesis and a digit/letter
+            expr = re.sub(r'([\)])\s*([0-9a-zA-Z\(])', r'\1*\2', expr)
+
+            # Map mathematical function strings directly to Python's math library execution
+            expr = expr.replace("sin(", "math.sin(").replace("cos(", "math.cos(").replace("tan(", "math.tan(")
+            expr = expr.replace("√(", "math.sqrt(").replace("ln(", "math.log(").replace("log(", "math.log10(")
+            expr = expr.replace("^", "**")
+            
+            # 🛠️ FIX: Auto-close trailing parenthetical statements to prevent unclosed bracket syntax errors
+            open_brackets = expr.count("(")
+            close_brackets = expr.count(")")
+            if open_brackets > close_brackets:
+                expr += ")" * (open_brackets - close_brackets)
+
+            # Context scope execution dictionary environments
+            allowed_env = {"math": math, "__builtins__": None}
+            result = eval(expr, allowed_env, {})
+            
+            if isinstance(result, float) and result.is_integer():
+                result = int(result)
+            st.session_state.calc_expression = str(result)
         except Exception:
             st.session_state.calc_expression = "Error"
 
@@ -235,7 +254,7 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    # Master Row Controls: CLR, DEL, (, )
+    # Master Top Row Layout Controls
     ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
     with ctrl_col1:
         st.button("CLR", key="btn_master_clr", on_click=clear_calc, use_container_width=True)
@@ -249,7 +268,7 @@ with st.sidebar:
     # Calculator Level Distribution Tabs
     calc_tabs = st.tabs(["🔢 Basic", "📐 Alg/Trig", "📈 Calc/Stat"])
 
-    # Render layout builder helper function
+    # UI Rendering grid generator
     def render_calc_grid(buttons, unique_prefix):
         for r_idx, row in enumerate(buttons):
             cols = st.columns(len(row))
@@ -258,11 +277,11 @@ with st.sidebar:
                     if char == "=":
                         st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=evaluate_calc, use_container_width=True)
                     elif char == " ":
-                        st.write("") # Spacer element placeholder
+                        st.write("") 
                     else:
                         st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=append_calc, args=(char,), use_container_width=True)
 
-    # Tab 1: Arithmetic & Basic Layout
+    # Tab 1: Arithmetic & Fractions
     with calc_tabs[0]:
         render_calc_grid([
             ["7", "8", "9", "÷"],
@@ -271,16 +290,15 @@ with st.sidebar:
             ["0", ".", "=", "+"]
         ], "grid_basic")
 
-    # Tab 2: Algebra & Trigonometry Layout
+    # Tab 2: Algebra, Trigonometry & Fraction Templates
     with calc_tabs[1]:
         render_calc_grid([
             ["sin(", "cos(", "tan(", "^"],
-            ["√(", "ln(", "log(", "π"],
-            ["e", "x", "y", "="]
+            ["√(", "ln(", "log(", "1/x"],
+            ["π", "e", "x", "="]
         ], "grid_alg_trig")
 
-    # Tab 3: Calculus & Advanced Statistics Layout 
-    # (Note: Symbolic characters can be typed to form expressions to discuss with the AI!)
+    # Tab 3: Calculus & Advanced Statistics Symbols
     with calc_tabs[2]:
         render_calc_grid([
             ["d/dx", "∫", "lim", "∑"],
@@ -416,13 +434,11 @@ for message in st.session_state.messages:
 # =====================================
 user_query = st.chat_input(lang["chat_placeholder"])
 
-# Quick-load triggers
 if st.session_state.quick_prompt:
     user_query = st.session_state.quick_prompt
     st.session_state.quick_prompt = None
 
 if user_query:
-    # Save user message structure
     st.session_state.messages.append({
         "role": "user",
         "content": user_query
@@ -431,7 +447,6 @@ if user_query:
     with st.chat_message("user"):
         st.markdown(user_query)
 
-    # Build prompt configurations
     formatted_messages = [
         {"role": "system", "content": SYSTEM_INSTRUCTION}
     ]
@@ -443,7 +458,6 @@ if user_query:
         full_response = ""
         seen_urls = set()
 
-        # Step 1: Scan user queries for instant reference links
         user_resources = get_math_resources(user_query)
         if user_resources:
             full_response += "📚 **Quick References:**\n"
@@ -461,14 +475,12 @@ if user_query:
                 stream=True
             )
 
-            # Step 2: Stream AI core response output
             for chunk in response_stream:
                 content = getattr(chunk.choices[0].delta, "content", None)
                 if content:
                     full_response += content
                     response_placeholder.markdown(full_response + "▌")
 
-            # Step 3: Scan AI output parameters and compile context links
             ai_resources = get_math_resources(full_response)
             new_resources = [res for res in ai_resources if res[1] not in seen_urls]
 
@@ -477,7 +489,6 @@ if user_query:
                 for title, url in new_resources:
                     full_response += f"• [{title}]({url})\n"
 
-            # Final static render block
             response_placeholder.markdown(full_response)
 
             st.session_state.messages.append({
