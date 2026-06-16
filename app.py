@@ -67,8 +67,8 @@ UI_TEXT = {
     "English": {
         "caption": "Your Campus BC Math Specialist | Created by Mark Wells and Jamazio Mcphee",
         "lang_prompt": "🌍 Select Your Language",
-        "calc_header": "🧮 Equation Builder",
-        "calc_caption": "Build your expression here, then copy it to the chat!",
+        "calc_header": "🧮 Advanced Calculator",
+        "calc_caption": "Compute math across all levels directly from your sidebar!",
         "ctrl_header": "Control Panel",
         "ctrl_info": "The BC Math Specialist is authenticated and ready to assist!",
         "reset_btn": "Reset Conversation",
@@ -88,8 +88,8 @@ UI_TEXT = {
     "Español": {
         "caption": "Tu Especialista Matemático BC | Creado por Mark Wells y Jamazio Mcphee",
         "lang_prompt": "🌍 Selecciona tu idioma",
-        "calc_header": "🧮 Constructor de Ecuaciones",
-        "calc_caption": "¡Construye tu expresión aquí y cópiala al chat!",
+        "calc_header": "🧮 Calculadora Avanzada",
+        "calc_caption": "¡Realiza cálculos de todos los niveles desde la barra lateral!",
         "ctrl_header": "Panel de Control",
         "ctrl_info": "¡El Especialista Matemático BC está listo para ayudar!",
         "reset_btn": "Reiniciar Conversación",
@@ -105,7 +105,71 @@ UI_TEXT = {
         "chat_placeholder": "¡Hola! ¿Con qué problema de matemáticas te puedo ayudar hoy? 🐅",
         "sys_prompt": "Debes responder ÚNICAMENTE en español.",
         "error_msg": "Error de API o autenticación. Verifica la configuración de tu sistema."
+    },
+    "Français": {
+        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
+        "lang_prompt": "🌍 Choisissez votre langue",
+        "calc_header": "🧮 Calculatrice Avancée",
+        "calc_caption": "Calculez des expressions de tous niveaux depuis la barre latérale !",
+        "ctrl_header": "Panneau de Configuration",
+        "ctrl_info": "Le spécialiste mathématique BC est prêt à vous aider !",
+        "reset_btn": "Réinitialiser la Conversation",
+        "quick_title": "**Démarreurs Rapides de Problèmes :**",
+        "ql_1_btn": "➕ Algèbre",
+        "ql_1_msg": "Comment résoudre une équation quadratique comme x² - 5x + 6 = 0 ?",
+        "ql_2_btn": "📐 Pré-Calcul",
+        "ql_2_msg": "Pouvez-vous m'aider à trouver la valeur exacte de sin(π/3) ?",
+        "ql_3_btn": "📈 Calcul",
+        "ql_3_msg": "J'ai besoin d'aide pour trouver la dérivée de f(x) = x² * e^x.",
+        "ql_4_btn": "📊 Statistiques",
+        "ql_4_msg": "Comment calculer l'écart type ou le score z d'un ensemble de données ?",
+        "chat_placeholder": "Bonjour ! Avec quel problème de mathématiques puis-je vous aider aujourd'hui ? 🐅",
+        "sys_prompt": "Vous devez répondre UNIQUEMENT en français.",
+        "error_msg": "Erreur d'authentification ou d'API. Veuillez vérifier votre configuration."
+    },
+    "Deutsch": {
+        "caption": "Ihr BC Mathematik-Spezialist | Erstellt von Mark Wells und Jamazio Mcphee",
+        "lang_prompt": "🌍 Sprache auswählen",
+        "calc_header": "🧮 Erweiterter Rechner",
+        "calc_caption": "Berechnen Sie mathematische Probleme aller Stufen in der Seitenleiste!",
+        "ctrl_header": "Kontrollzentrum",
+        "ctrl_info": "Der BC Mathematik-Spezialist ist authentifiziert und bereit zu helfen!",
+        "reset_btn": "Konversation zurücksetzen",
+        "quick_title": "**Schnellstart für Mathematikprobleme:**",
+        "ql_1_btn": "➕ Algebra",
+        "ql_1_msg": "Wie löse ich eine quadratische Gleichung wie x² - 5x + 6 = 0?",
+        "ql_2_btn": "📐 Vorkalkül",
+        "ql_2_msg": "Kannst du mir helfen, den exakten Wert von sin(π/3) zu finden?",
+        "ql_3_btn": "📈 Analysis",
+        "ql_3_msg": "Ich brauche Hilfe bei der Ableitung von f(x) = x² * e^x.",
+        "ql_4_btn": "📊 Statistik",
+        "ql_4_msg": "Wie bereche ich die Standardabweichung oder den Z-Wert eines Datensatzes?",
+        "chat_placeholder": "Hallo! Bei welchem Mathematikproblem kann ich heute helfen? 🐅",
+        "sys_prompt": "Du musst AUSSCHLIESSLICH auf Deutsch antworten.",
+        "error_msg": "Authentifizierungs- oder API-Fehler. Bitte überprüfe deine Systemkonfiguration."
     }
+    # ⬇️ DROP YOUR MISSING LANGUAGES HERE ⬇️
+    # "Your_Language_Here": {
+    #     "caption": "...",
+    #     "lang_prompt": "...",
+    #     "calc_header": "...",
+    #     "calc_caption": "...",
+    #     "ctrl_header": "...",
+    #     "ctrl_info": "...",
+    #     "reset_btn": "...",
+    #     "quick_title": "...",
+    #     "ql_1_btn": "...",
+    #     "ql_1_msg": "...",
+    #     "ql_2_btn": "...",
+    #     "ql_2_msg": "...",
+    #     "ql_3_btn": "...",
+    #     "ql_3_msg": "...",
+    #     "ql_4_btn": "...",
+    #     "ql_4_msg": "...",
+    #     "chat_placeholder": "...",
+    #     "sys_prompt": "...",
+    #     "error_msg": "..."
+    # }
 }
 
 # =====================================
@@ -124,22 +188,23 @@ if "shown_resources" not in st.session_state:
 if "custom_style" not in st.session_state:
     st.session_state.custom_style = ""
 
-# Fallback safely to English if language selection drops out
+# Load active language dictionary dynamically
 lang = UI_TEXT.get(st.session_state.language, UI_TEXT["English"])
 
 # =====================================
-# 4. SIDEBAR CONFIGURATION (EQUATION BUILDER)
+# 4. SIDEBAR CONFIGURATION (CALCULATOR)
 # =====================================
 with st.sidebar:
+    # 🛠️ DYNAMIC UPDATE: This now automatically reads whatever languages you put in UI_TEXT above!
     st.radio(
         "🌍 Choose Language",
-        ["English", "Español"],
+        list(UI_TEXT.keys()),
         key="language"
     )
 
     st.text_input(
         "🎭 Custom Persona / Style:",
-        placeholder="e.g., Southern style, hyper energetic...",
+        placeholder="e.g., Southern style, surfer slang, hyper energetic...",
         key="custom_style"
     )
 
@@ -148,14 +213,23 @@ with st.sidebar:
     st.header(lang["calc_header"])
     st.caption(lang["calc_caption"])
 
-    # Core Action Logic
+    # Core Calculator Callbacks
     def append_calc(char):
         if st.session_state.calc_expression in ["Error", "0"]:
             st.session_state.calc_expression = ""
-        st.session_state.calc_expression += str(char)
+        if char == "1/x":
+            st.session_state.calc_expression += "1/("
+        else:
+            st.session_state.calc_expression += str(char)
 
     def clear_calc():
         st.session_state.calc_expression = ""
+
+    def delete_last_calc():
+        if st.session_state.calc_expression in ["Error", "0"]:
+            st.session_state.calc_expression = ""
+        else:
+            st.session_state.calc_expression = st.session_state.calc_expression[:-1]
 
     def evaluate_calc():
         try:
@@ -167,7 +241,6 @@ with st.sidebar:
             expr = expr.replace("π", "pi").replace("e", "e")
             expr = expr.replace("√(", "sqrt(")
 
-            # Auto implicit multiplication
             expr = re.sub(r'(\d|pi|e)\s*([a-zA-Z\(])', r'\1*\2', expr)
             expr = re.sub(r'([\)])\s*([0-9a-zA-Z\(])', r'\1*\2', expr)
             expr = expr.replace("^", "**")
@@ -190,6 +263,7 @@ with st.sidebar:
             }
             
             raw_result = eval(expr, allowed_env, {})
+            
             if isinstance(raw_result, (int, float)):
                 rounded_result = round(raw_result, 10)
                 if isinstance(rounded_result, float) and rounded_result.is_integer():
@@ -198,67 +272,63 @@ with st.sidebar:
         except Exception:
             st.session_state.calc_expression = "Error"
 
-    # 🎛️ Row setup for Equation Display & Clear 'X' Button
-    display_col, clear_col = st.columns([4, 1])
-    with display_col:
-        st.text_input(
-            label="Equation Workspace",
-            value=st.session_state.calc_expression,
-            placeholder="Press Enter to apply",
-            disabled=True,
-            label_visibility="collapsed"
-        )
-    with clear_col:
-        st.button("❌", key="clear_workspace_btn", on_click=clear_calc, use_container_width=True)
+    st.text_input(
+        label="Calculator Screen",
+        value=st.session_state.calc_expression if st.session_state.calc_expression else "0",
+        disabled=True,
+        label_visibility="collapsed"
+    )
 
-    # Tabs config customized to match uploaded imagery perfectly
-    calc_tabs = st.tabs(["➕ Alg", "📈 Calc", "📊 Stat", "📐 Trig"])
+    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
+    with ctrl_col1:
+        st.button("CLR", key="btn_master_clr", on_click=clear_calc, use_container_width=True)
+    with ctrl_col2:
+        st.button("DEL", key="btn_master_del", on_click=delete_last_calc, use_container_width=True)
+    with ctrl_col3:
+        st.button("(", key="btn_master_lparen", on_click=append_calc, args=("(",), use_container_width=True)
+    with ctrl_col4:
+        st.button(")", key="btn_master_rparen", on_click=append_calc, args=(")",), use_container_width=True)
+
+    calc_tabs = st.tabs(["🔢 Basic", "📐 Alg/Trig", "📈 Calc/Stat"])
 
     def render_calc_grid(buttons, unique_prefix):
         for r_idx, row in enumerate(buttons):
             cols = st.columns(len(row))
             for c_idx, char in enumerate(row):
                 with cols[c_idx]:
-                    if char == " " or char == "":
+                    if char == "=":
+                        st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=evaluate_calc, use_container_width=True)
+                    elif char == " " or char == "":
                         st.write("") 
                     else:
                         st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=append_calc, args=(char,), use_container_width=True)
 
-    # Tab 1: Algebra Grid (Matching image_69f3ba.png layout)
     with calc_tabs[0]:
         render_calc_grid([
-            ["+", "-", "×", "÷"],
-            ["=", "≠", "x²", "x³"],
-            ["xⁿ", "√", "∛", "()"],
-            ["[]", "|x|", "∞", "½"]
-        ], "grid_alg")
+            ["7", "8", "9", "÷"],
+            ["4", "5", "6", "×"],
+            ["1", "2", "3", "-"],
+            ["0", ".", "=", "+"]
+        ], "grid_basic")
 
-    # Tab 2: Calculus Grid
     with calc_tabs[1]:
         render_calc_grid([
-            ["d/dx", "∫", "lim", "Δ"],
-            ["∇", "ℹ", "", ""]
-        ], "grid_calc")
+            ["sin(", "cos(", "tan(", "^"],
+            ["√(", "ln(", "log(", "1/x"],
+            ["π", "e", "x", "="]
+        ], "grid_alg_trig")
 
-    # Tab 3: Stats Grid
     with calc_tabs[2]:
         render_calc_grid([
+            ["d/dx", "∫", "lim", "∑"],
             ["μ", "σ", "x̄", "!"],
-            ["P(A)", "📊", "", ""]
-        ], "grid_stat")
-
-    # Tab 4: Trigonometry Grid
-    with calc_tabs[3]:
-        render_calc_grid([
-            ["sin(", "cos(", "tan(", "^"],
-            ["arcsin", "arccos", "arctan", "1/x"]
-        ], "grid_trig")
+            ["Δ", "∇", "∞", " "]
+        ], "grid_calc_stat")
 
     st.write("---")
     st.header(lang["ctrl_header"])
     st.info(lang["ctrl_info"])
 
-    # 🛠️ FIXED: Typo line 209 completely repaired here:
     if st.button(lang["reset_btn"], use_container_width=True):
         st.session_state.messages = []
         st.session_state.shown_resources = set()
@@ -369,4 +439,3 @@ if user_query:
         except Exception as e:
             st.error(lang["error_msg"])
             st.info(str(e))
-        
