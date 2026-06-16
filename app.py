@@ -23,19 +23,32 @@ st.markdown("""
         font-style: italic; 
     }
 
-    /* Custom Design for the Math Toolbar Buttons */
+    /* Custom Design for the Calculator Grid Buttons */
     div.stButton > button {
         background-color: #4C145E !important;
         color: #FFD700 !important;
         border: 2px solid #FFD700 !important;
         border-radius: 8px;
         font-weight: bold;
+        font-size: 16px;
+        height: 42px;
         transition: all 0.3s ease;
     }
     div.stButton > button:hover {
         background-color: #FFD700 !important;
         color: #4C145E !important;
         border: 2px solid #4C145E !important;
+    }
+
+    /* Disabled Display Styling to look like a crisp calculator window */
+    input:disabled {
+        background-color: #262730 !important;
+        color: #FFD700 !important;
+        font-family: 'Courier New', Courier, monospace !important;
+        font-size: 20px !important;
+        font-weight: bold !important;
+        text-align: right !important;
+        opacity: 1 !important;
     }
 
     /* Accent lines and styling wrappers */
@@ -51,9 +64,8 @@ UI_TEXT = {
     "English": {
         "caption": "Your Campus BC Math Specialist | Created by Mark Wells and Jamazio Mcphee",
         "lang_prompt": "🌍 Select Your Language",
-        "eq_header": "🧮 Equation Builder",
-        "eq_caption": "Build your expression here, then copy it to the chat!",
-        "eq_composer": "Equation Composer:",
+        "calc_header": "🧮 Interactive Calculator",
+        "calc_caption": "Solve quick math or copy results to your chat!",
         "ctrl_header": "Control Panel",
         "ctrl_info": "The BC Math Specialist is authenticated and ready to assist!",
         "reset_btn": "Reset Conversation",
@@ -73,9 +85,8 @@ UI_TEXT = {
     "Español": {
         "caption": "Tu Especialista Matemático BC | Creado por Mark Wells y Jamazio Mcphee",
         "lang_prompt": "🌍 Selecciona tu idioma",
-        "eq_header": "🧮 Creador de Ecuaciones",
-        "eq_caption": "¡Construye tu expresión aquí, luego cópiala al chat!",
-        "eq_composer": "Compositor de Ecuaciones:",
+        "calc_header": "🧮 Calculadora Interactiva",
+        "calc_caption": "¡Haz cálculos rápidos o copia el resultado al chat!",
         "ctrl_header": "Panel de Control",
         "ctrl_info": "¡El Especialista Matemático BC está listo para ayudar!",
         "reset_btn": "Reiniciar Conversación",
@@ -95,9 +106,8 @@ UI_TEXT = {
     "Français": {
         "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
         "lang_prompt": "🌍 Choisissez votre langue",
-        "eq_header": "🧮 Créateur d'Équations",
-        "eq_caption": "Construisez votre expression ici, puis copiez-la dans le chat !",
-        "eq_composer": "Compositeur d'Équations :",
+        "calc_header": "🧮 Calculatrice Interactive",
+        "calc_caption": "Calculez rapidement ou copiez le résultat dans le chat !",
         "ctrl_header": "Panneau de Configuration",
         "ctrl_info": "Le spécialiste mathématique BC est prêt à vous aider !",
         "reset_btn": "Réinitialiser la Conversation",
@@ -117,9 +127,8 @@ UI_TEXT = {
     "Deutsch": {
         "caption": "Ihr BC Mathematik-Spezialist | Erstellt von Mark Wells und Jamazio Mcphee",
         "lang_prompt": "🌍 Sprache auswählen",
-        "eq_header": "🧮 Gleichungs-Generator",
-        "eq_caption": "Erstelle hier deinen Ausdruck und kopiere ihn dann in den Chat!",
-        "eq_composer": "Gleichungseditor:",
+        "calc_header": "🧮 Interaktiver Taschenrechner",
+        "calc_caption": "Schnelle Berechnungen durchführen oder Ergebnisse kopieren!",
         "ctrl_header": "Kontrollzentrum",
         "ctrl_info": "Der BC Mathematik-Spezialist ist authentifiziert und bereit zu helfen!",
         "reset_btn": "Konversation zurücksetzen",
@@ -145,8 +154,8 @@ if "language" not in st.session_state:
     st.session_state.language = "English"
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "equation_draft" not in st.session_state:
-    st.session_state.equation_draft = ""
+if "calc_expression" not in st.session_state:
+    st.session_state.calc_expression = ""
 if "quick_prompt" not in st.session_state:
     st.session_state.quick_prompt = None
 if "shown_resources" not in st.session_state:
@@ -158,7 +167,7 @@ if "custom_style" not in st.session_state:
 lang = UI_TEXT[st.session_state.language]
 
 # =====================================
-# 4. SIDEBAR CONFIGURATION
+# 4. SIDEBAR CONFIGURATION (CALCULATOR)
 # =====================================
 with st.sidebar:
     # Prominent Language Selector
@@ -177,61 +186,87 @@ with st.sidebar:
 
     st.write("---")
 
-    # Equation Builder Header
-    st.header(lang["eq_header"])
-    st.caption(lang["eq_caption"])
+    # Calculator Header Block
+    st.header(lang["calc_header"])
+    st.caption(lang["calc_caption"])
 
-    def add_symbol(sym): st.session_state.equation_draft += sym
-    def clear_equation(): st.session_state.equation_draft = ""
+    # Core Calculator Processing Actions
+    def append_calc(char):
+        # Prevent double operator entries or clean up errors instantly
+        if st.session_state.calc_expression in ["Error", "0"]:
+            st.session_state.calc_expression = ""
+        st.session_state.calc_expression += str(char)
 
-    # 🛠️ Updated Composer Row: Input Box, Clipboard Copy Button, and Clear Button
-    draft_col, copy_col, clear_col = st.columns([6, 1, 1])
-    with draft_col:
-        st.text_input(lang["eq_composer"], key="equation_draft", label_visibility="collapsed")
-        
-    with copy_col:
-        # Sanitize draft content strings safely for JavaScript ingestion 
-        safe_copy_text = st.session_state.equation_draft.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
-        st.markdown(f"""
-            <button onclick="navigator.clipboard.writeText('{safe_copy_text}')" style="
-                background-color: #4C145E;
-                color: #FFD700;
-                border: 2px solid #FFD700;
-                border-radius: 8px;
-                font-weight: bold;
-                width: 100%;
-                height: 42px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 16px;
-                transition: all 0.3s ease;
-                margin: 0;
-                padding: 0;
-            " onmouseover="this.style.backgroundColor='#FFD700'; this.style.color='#4C145E'; this.style.borderColor='#4C145E';" 
-               onmouseout="this.style.backgroundColor='#4C145E'; this.style.color='#FFD700'; this.style.borderColor='#FFD700';"
-               title="Copy to Clipboard">
-                📋
-            </button>
-        """, unsafe_allow_html=True)
-        
-    with clear_col:
-        st.button("❌", on_click=clear_equation, use_container_width=True)
+    def clear_calc():
+        st.session_state.calc_expression = ""
 
-    # Math Toolbar Category Layout Tabs
-    math_tabs = st.tabs(["➕ Alg", "📈 Calc", "📊 Stat", "📐 Trig"])
+    def evaluate_calc():
+        try:
+            # Map clean layout display elements to python evaluators safely
+            parsed_expr = st.session_state.calc_expression.replace("×", "*").replace("÷", "/")
+            if parsed_expr:
+                # Basic string calculation handling
+                result = eval(parsed_expr, {"__builtins__": None}, {})
+                # Format to remove trailing decimals on clean integers
+                if isinstance(result, float) and result.is_integer():
+                    result = int(result)
+                st.session_state.calc_expression = str(result)
+        except Exception:
+            st.session_state.calc_expression = "Error"
 
-    def render_symbol_grid(symbols, prefix):
+    # 🎛️ Calculator Display Screen
+    st.text_input(
+        label="Calculator Screen",
+        value=st.session_state.calc_expression if st.session_state.calc_expression else "0",
+        disabled=True,
+        label_visibility="collapsed"
+    )
+
+    # Grid Keypad Layout Assembly
+    calculator_buttons = [
+        ["7", "8", "9", "÷"],
+        ["4", "5", "6", "×"],
+        ["1", "2", "3", "-"],
+        ["0", ".", "=", "+"],
+        ["C", "(", ")", "📋"]
+    ]
+
+    for row_idx, row in enumerate(calculator_buttons):
         cols = st.columns(4)
-        for i, sym in enumerate(symbols):
-            with cols[i % 4]:
-                st.button(sym, key=f"{prefix}_sym_{i}", on_click=add_symbol, args=(sym,), use_container_width=True)
-
-    with math_tabs[0]: render_symbol_grid(['+', '-', '×', '÷', '=', '≠', 'x²', 'x³', 'xⁿ', '√', '∛', '()', '[]', '|x|', '∞', '½'], "alg")
-    with math_tabs[1]: render_symbol_grid(['∫', '∬', '∭', '∮', '∂', 'd/dx', 'lim', '∑', '∏', 'Δ', '∇', 'e', 'ln', 'log', 'dx', 'dy'], "calc")
-    with math_tabs[2]: render_symbol_grid(['μ', 'σ', 'σ²', 'x̄', 'p̂', 'χ²', 'ρ', 'Z', 'T', 'P()', 'E()', 'Var()', '∩', '∪', '!', '≈'], "stat")
-    with math_tabs[3]: render_symbol_grid(['π', 'θ', 'α', 'β', 'γ', 'sin', 'cos', 'tan', '∈', '∉', '⊂', '⊆', 'Ø', '°', '∠', '△'], "trig")
+        for col_idx, char in enumerate(row):
+            with cols[col_idx]:
+                if char == "=":
+                    st.button(char, key=f"calc_btn_{row_idx}_{col_idx}", on_click=evaluate_calc, use_container_width=True)
+                elif char == "C":
+                    st.button(char, key=f"calc_btn_{row_idx}_{col_idx}", on_click=clear_calc, use_container_width=True)
+                elif char == "📋":
+                    # Client-side JavaScript processing injection button
+                    safe_copy_val = st.session_state.calc_expression.replace("'", "\\'")
+                    st.markdown(f"""
+                        <button onclick="navigator.clipboard.writeText('{safe_copy_val}')" style="
+                            background-color: #4C145E;
+                            color: #FFD700;
+                            border: 2px solid #FFD700;
+                            border-radius: 8px;
+                            font-weight: bold;
+                            width: 100%;
+                            height: 42px;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 16px;
+                            transition: all 0.3s ease;
+                            margin: 0;
+                            padding: 0;
+                        " onmouseover="this.style.backgroundColor='#FFD700'; this.style.color='#4C145E'; this.style.borderColor='#4C145E';" 
+                           onmouseout="this.style.backgroundColor='#4C145E'; this.style.color='#FFD700'; this.style.borderColor='#FFD700';"
+                           title="Copy Result">
+                            📋
+                        </button>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.button(char, key=f"calc_btn_{row_idx}_{col_idx}", on_click=append_calc, args=(char,), use_container_width=True)
 
     st.write("---")
     st.header(lang["ctrl_header"])
@@ -240,6 +275,7 @@ with st.sidebar:
     if st.button(lang["reset_btn"], use_container_width=True):
         st.session_state.messages = []
         st.session_state.shown_resources = set()
+        st.session_state.calc_expression = ""
         st.rerun()
 
 # =====================================
