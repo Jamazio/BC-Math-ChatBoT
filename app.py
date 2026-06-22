@@ -116,7 +116,7 @@ UI_TEXT = {
         "error_msg": "Error de API o autenticación. Verifica la configuración de tu sistema."
     },
     "Français": {
-        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
+        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells y Jamazio Mcphee",
         "lang_prompt": "🌍 Choisissez votre langue",
         "calc_header": "🧮 Calculatrice Avancée",
         "calc_caption": "Calculez des expressions de tous niveaux depuis la barra latérale !",
@@ -409,4 +409,74 @@ if st.session_state.target_symbol:
 
 # Inline Symbol palette drop option placed cleanly at base of conversational field
 with st.popover("📐 Insert Math Symbols & Operations"):
-    sym_tabs = st.tabs(
+    sym_tabs = st.tabs(["Algebra", "Trig", "Calc/Stats"])
+    
+    with sym_tabs[0]:
+        s_row1 = st.columns(6)
+        s_row1[0].button("π", key="sym_pi", on_click=send_symbol_to_state, args=("π",), use_container_width=True)
+        s_row1[1].button("√", key="sym_sqrt", on_click=send_symbol_to_state, args=("√(",), use_container_width=True)
+        s_row1[2].button("²", key="sym_sq", on_click=send_symbol_to_state, args=("²",), use_container_width=True)
+        s_row1[3].button("^", key="sym_pow", on_click=send_symbol_to_state, args=("^",), use_container_width=True)
+        s_row1[4].button("±", key="sym_pm", on_click=send_symbol_to_state, args=("±",), use_container_width=True)
+        s_row1[5].button("x", key="sym_x", on_click=send_symbol_to_state, args=("x",), use_container_width=True)
+        
+    with sym_tabs[1]:
+        s_row2 = st.columns(5)
+        s_row2[0].button("sin", key="sym_sin", on_click=send_symbol_to_state, args=("sin(",), use_container_width=True)
+        s_row2[1].button("cos", key="sym_cos", on_click=send_symbol_to_state, args=("cos(",), use_container_width=True)
+        s_row2[2].button("tan", key="sym_tan", on_click=send_symbol_to_state, args=("tan(",), use_container_width=True)
+        s_row2[3].button("θ", key="sym_theta", on_click=send_symbol_to_state, args=("θ",), use_container_width=True)
+        s_row2[4].button("°", key="sym_deg", on_click=send_symbol_to_state, args=("°",), use_container_width=True)
+
+    with sym_tabs[2]:
+        s_row3 = st.columns(6)
+        s_row3[0].button("∫", key="sym_int", on_click=send_symbol_to_state, args=("∫",), use_container_width=True)
+        s_row3[1].button("d/dx", key="sym_diff", on_click=send_symbol_to_state, args=("d/dx ",), use_container_width=True)
+        s_row3[2].button("lim", key="sym_lim", on_click=send_symbol_to_state, args=("lim ",), use_container_width=True)
+        s_row3[3].button("∑", key="sym_sigma", on_click=send_symbol_to_state, args=("∑",), use_container_width=True)
+        s_row3[4].button("∞", key="sym_inf", on_click=send_symbol_to_state, args=("∞",), use_container_width=True)
+        s_row3[5].button("Δ", key="sym_delta", on_click=send_symbol_to_state, args=("Δ",), use_container_width=True)
+
+# Detect if a Quick-Load starter bypass was triggered
+if st.session_state.quick_prompt:
+    user_query = st.session_state.quick_prompt
+    st.session_state.quick_prompt = None
+else:
+    # Restored Native Hovering Chat Input Bar
+    user_query = st.chat_input(lang["chat_placeholder"])
+
+if user_query:
+    st.session_state.messages.append({"role": "user", "content": user_query})
+
+    with st.chat_message("user"):
+        st.markdown(user_query)
+
+    formatted_messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+    for msg in st.session_state.messages:
+        formatted_messages.append({"role": msg["role"], "content": msg["content"]})
+
+    with st.chat_message("assistant"):
+        response_placeholder = st.empty()
+        full_response = ""
+
+        try:
+            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+            response_stream = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=formatted_messages,
+                temperature=0.6,
+                stream=True
+            )
+
+            for chunk in response_stream:
+                content = getattr(chunk.choices[0].delta, "content", None)
+                if content:
+                    full_response += content
+                    response_placeholder.markdown(full_response + "▌")
+
+            response_placeholder.markdown(full_response)
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+        except Exception as e:
+            st.error(lang["error_msg"])
+            st.info(str(e))
