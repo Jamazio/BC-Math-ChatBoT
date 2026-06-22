@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from groq import Groq
 import math
 import re
@@ -54,22 +55,11 @@ st.markdown("""
         opacity: 1 !important;
     }
 
-    /* Custom Input Bar Styling (To look like a sleek native Chat Input) */
-    div[data-testid="stTextInput"] input {
-        background-color: #262730 !important;
-        color: #FFFFFF !important;
-        border: 2px solid #4C145E !important;
-        border-radius: 12px !important;
-        padding: 12px 16px !important;
-        font-size: 16px !important;
-    }
-    div[data-testid="stTextInput"] input:focus {
-        border-color: #FFD700 !important;
-        box-shadow: 0 0 8px rgba(255, 215, 0, 0.5) !important;
-    }
-
     /* Accent lines and styling wrappers */
     div[data-testid="stSidebar"] { background-color: #1A1A1A; }
+    div[data-testid="stChatInput"] { border: 2px solid #4C145E !important; border-radius: 12px; }
+    
+    /* Popover Menu Styling */
     div[data-testid="stPopover"] > button {
         background-color: #262730 !important;
         color: #FFD700 !important;
@@ -184,15 +174,15 @@ if "shown_resources" not in st.session_state:
     st.session_state.shown_resources = set()
 if "custom_style" not in st.session_state:
     st.session_state.custom_style = ""
-if "chat_draft" not in st.session_state:
-    st.session_state.chat_draft = ""
+if "target_symbol" not in st.session_state:
+    st.session_state.target_symbol = None
 
 # Load active language dictionary dynamically
 lang = UI_TEXT.get(st.session_state.language, UI_TEXT["English"])
 
-# Callback function to inject symbols directly into the text container
-def append_symbol_to_chat(symbol):
-    st.session_state.chat_draft += str(symbol)
+# Callback to flag which symbol needs background injection
+def send_symbol_to_state(symbol):
+    st.session_state.target_symbol = symbol
 
 # =====================================
 # 4. SIDEBAR CONFIGURATION (CALCULATOR)
@@ -335,7 +325,6 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.shown_resources = set()
         st.session_state.calc_expression = ""
-        st.session_state.chat_draft = ""
         st.rerun()
 
 # =====================================
@@ -399,101 +388,25 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # =====================================
-# 10. INPUT & EXECUTION LAYER (WITH CENGAGE CHART)
+# 10. INPUT & EXECUTION LAYER (WITH HOVERING INPUT)
 # =====================================
 
-# Check for a Quick-Load bypass first
-if st.session_state.quick_prompt:
-    st.session_state.chat_draft = st.session_state.quick_prompt
-    st.session_state.quick_prompt = None
+# Background DOM Script injection engine to safely paste values into native st.chat_input
+if st.session_state.target_symbol:
+    js_injector = f"""
+    <script>
+    var textarea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+    if (textarea) {{
+        var valueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+        valueSetter.call(textarea, textarea.value + '{st.session_state.target_symbol}');
+        textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
+        textarea.focus();
+    }}
+    </script>
+    """
+    components.html(js_injector, height=0, width=0)
+    st.session_state.target_symbol = None  # Reset tracking safely
 
-# Cengage-style Symbol Toolbar Tray using a compact popover layout
+# Inline Symbol palette drop option placed cleanly at base of conversational field
 with st.popover("📐 Insert Math Symbols & Operations"):
-    sym_tabs = st.tabs(["Algebra", "Trig", "Calc/Stats"])
-    
-    with sym_tabs[0]:
-        s_row1 = st.columns(6)
-        s_row1[0].button("π", key="sym_pi", on_click=append_symbol_to_chat, args=("π",), use_container_width=True)
-        s_row1[1].button("√", key="sym_sqrt", on_click=append_symbol_to_chat, args=("√(",), use_container_width=True)
-        s_row1[2].button("²", key="sym_sq", on_click=append_symbol_to_chat, args=("²",), use_container_width=True)
-        s_row1[3].button("^", key="sym_pow", on_click=append_symbol_to_chat, args=("^",), use_container_width=True)
-        s_row1[4].button("±", key="sym_pm", on_click=append_symbol_to_chat, args=("±",), use_container_width=True)
-        s_row1[5].button("x", key="sym_x", on_click=append_symbol_to_chat, args=("x",), use_container_width=True)
-        
-    with sym_tabs[1]:
-        s_row2 = st.columns(5)
-        s_row2[0].button("sin", key="sym_sin", on_click=append_symbol_to_chat, args=("sin(",), use_container_width=True)
-        s_row2[1].button("cos", key="sym_cos", on_click=append_symbol_to_chat, args=("cos(",), use_container_width=True)
-        s_row2[2].button("tan", key="sym_tan", on_click=append_symbol_to_chat, args=("tan(",), use_container_width=True)
-        s_row2[3].button("θ", key="sym_theta", on_click=append_symbol_to_chat, args=("θ",), use_container_width=True)
-        s_row2[4].button("°", key="sym_deg", on_click=append_symbol_to_chat, args=("°",), use_container_width=True)
-
-    with sym_tabs[2]:
-        s_row3 = st.columns(6)
-        s_row3[0].button("∫", key="sym_int", on_click=append_symbol_to_chat, args=("∫",), use_container_width=True)
-        s_row3[1].button("d/dx", key="sym_diff", on_click=append_symbol_to_chat, args=("d/dx ",), use_container_width=True)
-        s_row3[2].button("lim", key="sym_lim", on_click=append_symbol_to_chat, args=("lim ",), use_container_width=True)
-        s_row3[3].button("∑", key="sym_sigma", on_click=append_symbol_to_chat, args=("∑",), use_container_width=True)
-        s_row3[4].button("∞", key="sym_inf", on_click=append_symbol_to_chat, args=("∞",), use_container_width=True)
-        s_row3[5].button("Δ", key="sym_delta", on_click=append_symbol_to_chat, args=("Δ",), use_container_width=True)
-
-# Coordinated Chat Entry Row
-input_col, action_col = st.columns([0.88, 0.12])
-
-with input_col:
-    user_query = st.text_input(
-        label="Chat Input Field",
-        value=st.session_state.chat_draft,
-        placeholder=lang["chat_placeholder"],
-        label_visibility="collapsed"
-    )
-
-with action_col:
-    submit_triggered = st.button("Send 🚀", use_container_width=True)
-
-# Processing Logic on submission execution
-if submit_triggered and user_query:
-    # Append user question to history tracking lists
-    st.session_state.messages.append({"role": "user", "content": user_query})
-    
-    # Reset layout values safely
-    st.session_state.chat_draft = ""
-    
-    # Temporarily refresh view display to show state adjustments cleanly
-    st.rerun()
-
-# Run actual prompt inferences if history demands attention updates
-if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
-    current_user_message = st.session_state.messages[-1]["content"]
-    
-    formatted_messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
-    for msg in st.session_state.messages[:-1]:
-        formatted_messages.append({"role": msg["role"], "content": msg["content"]})
-    formatted_messages.append({"role": "user", "content": current_user_message})
-
-    with st.chat_message("assistant"):
-        response_placeholder = st.empty()
-        full_response = ""
-
-        try:
-            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-            response_stream = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=formatted_messages,
-                temperature=0.6,
-                stream=True
-            )
-
-            for chunk in response_stream:
-                content = getattr(chunk.choices[0].delta, "content", None)
-                if content:
-                    full_response += content
-                    response_placeholder.markdown(full_response + "▌")
-
-            response_placeholder.markdown(full_response)
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-            st.rerun()
-
-        except Exception as e:
-            st.error(lang["error_msg"])
-            st.info(str(e))
+    sym_tabs = st.tabs(
