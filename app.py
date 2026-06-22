@@ -8,66 +8,66 @@ import re
 # 1. PAGE SETUP & CONFIG
 # =====================================
 st.set_page_config(
-    page_title="BC TigerMath AI", 
-    page_icon="🐅", 
+    page_title="BC TigerMath AI",
+    page_icon="🐅",
     layout="wide"
 )
 
 # --- 🎨 Custom CSS Injection: BC Purple & Tiger Gold Theme ---
 st.markdown("""
-    <style>
-    /* Title and Subtitle Styling */
-    h1 { 
-        color: #FFD700 !important; 
-        font-family: 'Arial Black', Gadget, sans-serif; 
-    }
-    .stCaption { 
-        color: #F0F2F6 !important; 
-        font-style: italic; 
-    }
+<style>
+/* Title and Subtitle Styling */
+h1 {
+    color: #FFD700 !important;
+    font-family: 'Arial Black', Gadget, sans-serif;
+}
+.stCaption {
+    color: #F0F2F6 !important;
+    font-style: italic;
+}
 
-    /* Custom Design for the Calculator & Symbol Grid Buttons */
-    div.stButton > button {
-        background-color: #4C145E !important;
-        color: #FFD700 !important;
-        border: 2px solid #FFD700 !important;
-        border-radius: 8px;
-        font-weight: bold;
-        font-size: 14px;
-        height: 40px;
-        transition: all 0.3s ease;
-        padding: 0px !important;
-    }
-    div.stButton > button:hover {
-        background-color: #FFD700 !important;
-        color: #4C145E !important;
-        border: 2px solid #4C145E !important;
-    }
+/* Custom Design for the Calculator & Symbol Grid Buttons */
+div.stButton > button {
+    background-color: #4C145E !important;
+    color: #FFD700 !important;
+    border: 2px solid #FFD700 !important;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 14px;
+    height: 40px;
+    transition: all 0.3s ease;
+    padding: 0px !important;
+}
+div.stButton > button:hover {
+    background-color: #FFD700 !important;
+    color: #4C145E !important;
+    border: 2px solid #4C145E !important;
+}
 
-    /* Calculator Display Window Screen */
-    input:disabled {
-        background-color: #262730 !important;
-        color: #FFD700 !important;
-        font-family: 'Courier New', Courier, monospace !important;
-        font-size: 18px !important;
-        font-weight: bold !important;
-        text-align: right !important;
-        opacity: 1 !important;
-    }
+/* Calculator Display Window Screen */
+input:disabled {
+    background-color: #262730 !important;
+    color: #FFD700 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    text-align: right !important;
+    opacity: 1 !important;
+}
 
-    /* Accent lines and styling wrappers */
-    div[data-testid="stSidebar"] { background-color: #1A1A1A; }
-    div[data-testid="stChatInput"] { border: 2px solid #4C145E !important; border-radius: 12px; }
-    
-    /* Popover Menu Styling */
-    div[data-testid="stPopover"] > button {
-        background-color: #262730 !important;
-        color: #FFD700 !important;
-        border: 1px solid #4C145E !important;
-        border-radius: 8px;
-        width: 100%;
-    }
-    </style>
+/* Accent lines and styling wrappers */
+div[data-testid="stSidebar"] { background-color: #1A1A1A; }
+div[data-testid="stChatInput"] { border: 2px solid #4C145E !important; border-radius: 12px; }
+
+/* Popover Menu Styling */
+div[data-testid="stPopover"] > button {
+    background-color: #262730 !important;
+    color: #FFD700 !important;
+    border: 1px solid #4C145E !important;
+    border-radius: 8px;
+    width: 100%;
+}
+</style>
 """, unsafe_allow_html=True)
 
 # =====================================
@@ -237,7 +237,6 @@ with st.sidebar:
             expr = re.sub(r'(\d|pi|e)\s*([a-zA-Z\(])', r'\1*\2', expr)
             expr = re.sub(r'([\)])\s*([0-9a-zA-Z\(])', r'\1*\2', expr)
             expr = expr.replace("^", "**")
-            
             open_brackets = expr.count("(")
             close_brackets = expr.count(")")
             if open_brackets > close_brackets:
@@ -254,9 +253,7 @@ with st.sidebar:
                 "e": math.e,
                 "__builtins__": None
             }
-            
             raw_result = eval(expr, allowed_env, {})
-            
             if isinstance(raw_result, (int, float)):
                 rounded_result = round(raw_result, 10)
                 if isinstance(rounded_result, float) and rounded_result.is_integer():
@@ -292,7 +289,7 @@ with st.sidebar:
                     if char == "=":
                         st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=evaluate_calc, use_container_width=True)
                     elif char == " " or char == "":
-                        st.write("") 
+                        st.write("")
                     else:
                         st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=append_calc, args=(char,), use_container_width=True)
 
@@ -360,6 +357,21 @@ def load_verified_campus_data():
 
 campus_knowledge_base = load_verified_campus_data()
 
+def get_math_resources(text):
+    q = text.lower()
+    resource_map = {
+        "alg": [("Khan Academy Algebra", "https://www.khanacademy.org/math/algebra")],
+        "deriv": [("Calculus Derivatives", "https://tutorial.math.lamar.edu/Classes/CalcI/DerivativeIntro.aspx")],
+        "integ": [("Integration Guide", "https://tutorial.math.lamar.edu/Classes/CalcI/DefiniteIntegrals.aspx")],
+        "stat": [("Khan Academy Stats", "https://www.khanacademy.org/math/statistics-probability")],
+        "trig": [("Trigonometry Basics", "https://www.khanacademy.org/math/trigonometry")]
+    }
+    results = []
+    for key, links in resource_map.items():
+        if key in q:
+            results.extend(links)
+    return list(set(results)) # Removes duplicates
+
 # =====================================
 # 8. SOCRATIC PROMPT ENGINE CONSTRUCT
 # =====================================
@@ -380,11 +392,11 @@ CRITICAL LANGUAGE REQUIREMENT:
 
 📐 MATHEMATICS DIRECTIVES:
 - CRITICAL DIRECTIVE: For all math problems, NEVER give the user the final solution or write out a complete step-by-step answer upfront. Your core job is to guide them to discover it.
-  1. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question to guide the student.
-  2. If the user says they are completely stuck, provide a brief micro-explanation of the underlying rule.
-  3. Keep responses highly interactive and conversational. Never write long blocks of text.
-  4. If they make an error, point out the breakdown in logic gently.
-  5. Only confirm the final answer after they have calculated it themselves.
+1. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question to guide the student.
+2. If the user says they are completely stuck, provide a brief micro-explanation of the underlying rule.
+3. Keep responses highly interactive and conversational. Never write long blocks of text.
+4. If they make an error, point out the breakdown in logic gently.
+5. Only confirm the final answer after they have calculated it themselves.
 """
 
 # =====================================
@@ -413,7 +425,7 @@ if st.session_state.target_symbol:
     </script>
     """
     components.html(js_injector, height=0, width=0)
-    st.session_state.target_symbol = None  # Reset tracking safely
+    st.session_state.target_symbol = None # Reset tracking safely
 
 # Popover placed perfectly right above the sticky input area
 with st.popover("📐 Insert Math Symbols & Operations"):
@@ -445,29 +457,51 @@ with st.popover("📐 Insert Math Symbols & Operations"):
         s_row3[4].button("∞", key="sym_inf", on_click=send_symbol_to_state, args=("∞",), use_container_width=True)
         s_row3[5].button("Δ", key="sym_delta", on_click=send_symbol_to_state, args=("Δ",), use_container_width=True)
 
-# Native floating chat bar input handler
+user_query = st.chat_input(lang["chat_placeholder"])
+
+# Quick-load buttons
 if st.session_state.quick_prompt:
     user_query = st.session_state.quick_prompt
     st.session_state.quick_prompt = None
-else:
-    user_query = st.chat_input(lang["chat_placeholder"])
 
 if user_query:
-    st.session_state.messages.append({"role": "user", "content": user_query})
+    # Save user message
+    st.session_state.messages.append({
+        "role": "user",
+        "content": user_query
+    })
 
     with st.chat_message("user"):
         st.markdown(user_query)
 
-    formatted_messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
-    for msg in st.session_state.messages:
+    # Build conversation context
+    formatted_messages = [
+        {"role": "system", "content": SYSTEM_INSTRUCTION}
+    ]
+    
+    # *** THIS IS THE CRITICAL TOKEN-SAVING FIX (-6 SLICE) ***
+    for msg in st.session_state.messages[-6:]:
         formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
         full_response = ""
+        
+        # Track links we have already shown in this turn to avoid duplicates
+        seen_urls = set()
+
+        # 🧠 Step 1: Scan user query for instant reference links
+        user_resources = get_math_resources(user_query)
+        if user_resources:
+            full_response += "📚 **Quick References:**\n"
+            for title, url in user_resources:
+                full_response += f"• [{title}]({url})\n"
+                seen_urls.add(url)
+            full_response += "\n---\n\n"
 
         try:
             client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+
             response_stream = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=formatted_messages,
@@ -475,15 +509,33 @@ if user_query:
                 stream=True
             )
 
+            # 🤖 Step 2: Stream the AI's Socratic guidance
             for chunk in response_stream:
                 content = getattr(chunk.choices[0].delta, "content", None)
                 if content:
                     full_response += content
                     response_placeholder.markdown(full_response + "▌")
 
+            # 🧠 Step 3: Scan what the AI said and append new links
+            ai_resources = get_math_resources(full_response)
+            
+            # Filter out links that were already added during Step 1
+            new_resources = [res for res in ai_resources if res[1] not in seen_urls]
+
+            if new_resources:
+                # Append a footer section to the response
+                full_response += "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
+                for title, url in new_resources:
+                    full_response += f"• [{title}]({url})\n"
+
+            # Final static render of everything combined
             response_placeholder.markdown(full_response)
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-            st.rerun()
+
+            # Save the comprehensive response to session state
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": full_response
+            })
 
         except Exception as e:
             st.error(lang["error_msg"])
