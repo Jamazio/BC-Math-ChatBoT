@@ -363,7 +363,9 @@ campus_knowledge_base = load_verified_campus_data()
 # =====================================
 # 8. SOCRATIC PROMPT ENGINE CONSTRUCT
 # =====================================
-style_instruction = f"\n- PERSONALITY/TONE MODIFIER: Adhere to this specific presentation style or persona: {st.session_state.custom_style}." if st.session_style else ""
+custom_style_val = st.session_state.get("custom_style", "")
+style_instruction = f"\n- PERSONALITY/TONE MODIFIER: Adhere to this specific presentation style or persona: {custom_style_val}." if custom_style_val else ""
+
 SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
 
 CRITICAL LANGUAGE REQUIREMENT:
