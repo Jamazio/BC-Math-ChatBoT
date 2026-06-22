@@ -25,7 +25,7 @@ st.markdown("""
         font-style: italic; 
     }
 
-    /* Custom Design for the Calculator Grid Buttons */
+    /* Custom Design for the Calculator & Symbol Grid Buttons */
     div.stButton > button {
         background-color: #4C145E !important;
         color: #FFD700 !important;
@@ -54,9 +54,28 @@ st.markdown("""
         opacity: 1 !important;
     }
 
+    /* Custom Input Bar Styling (To look like a sleek native Chat Input) */
+    div[data-testid="stTextInput"] input {
+        background-color: #262730 !important;
+        color: #FFFFFF !important;
+        border: 2px solid #4C145E !important;
+        border-radius: 12px !important;
+        padding: 12px 16px !important;
+        font-size: 16px !important;
+    }
+    div[data-testid="stTextInput"] input:focus {
+        border-color: #FFD700 !important;
+        box-shadow: 0 0 8px rgba(255, 215, 0, 0.5) !important;
+    }
+
     /* Accent lines and styling wrappers */
     div[data-testid="stSidebar"] { background-color: #1A1A1A; }
-    div[data-testid="stChatInput"] { border: 2px solid #4C145E !important; border-radius: 12px; }
+    div[data-testid="stPopover"] > button {
+        background-color: #262730 !important;
+        color: #FFD700 !important;
+        border: 1px solid #4C145E !important;
+        border-radius: 8px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -110,7 +129,7 @@ UI_TEXT = {
         "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
         "lang_prompt": "🌍 Choisissez votre langue",
         "calc_header": "🧮 Calculatrice Avancée",
-        "calc_caption": "Calculez des expressions de tous niveaux depuis la barre latérale !",
+        "calc_caption": "Calculez des expressions de tous niveaux depuis la barra latérale !",
         "ctrl_header": "Panneau de Configuration",
         "ctrl_info": "Le spécialiste mathématique BC est prêt à vous aider !",
         "reset_btn": "Réinitialiser la Conversation",
@@ -118,7 +137,7 @@ UI_TEXT = {
         "ql_1_btn": "➕ Algèbre",
         "ql_1_msg": "Comment résoudre une équation quadratique comme x² - 5x + 6 = 0 ?",
         "ql_2_btn": "📐 Pré-Calcul",
-        "ql_2_msg": "Pouvez-vous m'aider à trouver la valeur exacte de sin(π/3) ?",
+        "ql_2_msg": "Pouvez-vous m'aidez à trouver la valeur exacte de sin(π/3) ?",
         "ql_3_btn": "📈 Calcul",
         "ql_3_msg": "J'ai besoin d'aide pour trouver la dérivée de f(x) = x² * e^x.",
         "ql_4_btn": "📊 Statistiques",
@@ -148,28 +167,6 @@ UI_TEXT = {
         "sys_prompt": "Du musst AUSSCHLIESSLICH auf Deutsch antworten.",
         "error_msg": "Authentifizierungs- oder API-Fehler. Bitte überprüfe deine Systemkonfiguration."
     }
-    # ⬇️ DROP YOUR MISSING LANGUAGES HERE ⬇️
-    # "Your_Language_Here": {
-    #     "caption": "...",
-    #     "lang_prompt": "...",
-    #     "calc_header": "...",
-    #     "calc_caption": "...",
-    #     "ctrl_header": "...",
-    #     "ctrl_info": "...",
-    #     "reset_btn": "...",
-    #     "quick_title": "...",
-    #     "ql_1_btn": "...",
-    #     "ql_1_msg": "...",
-    #     "ql_2_btn": "...",
-    #     "ql_2_msg": "...",
-    #     "ql_3_btn": "...",
-    #     "ql_3_msg": "...",
-    #     "ql_4_btn": "...",
-    #     "ql_4_msg": "...",
-    #     "chat_placeholder": "...",
-    #     "sys_prompt": "...",
-    #     "error_msg": "..."
-    # }
 }
 
 # =====================================
@@ -187,15 +184,20 @@ if "shown_resources" not in st.session_state:
     st.session_state.shown_resources = set()
 if "custom_style" not in st.session_state:
     st.session_state.custom_style = ""
+if "chat_draft" not in st.session_state:
+    st.session_state.chat_draft = ""
 
 # Load active language dictionary dynamically
 lang = UI_TEXT.get(st.session_state.language, UI_TEXT["English"])
+
+# Callback function to inject symbols directly into the text container
+def append_symbol_to_chat(symbol):
+    st.session_state.chat_draft += str(symbol)
 
 # =====================================
 # 4. SIDEBAR CONFIGURATION (CALCULATOR)
 # =====================================
 with st.sidebar:
-    # 🛠️ DYNAMIC UPDATE: This now automatically reads whatever languages you put in UI_TEXT above!
     st.radio(
         "🌍 Choose Language",
         list(UI_TEXT.keys()),
@@ -333,6 +335,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.shown_resources = set()
         st.session_state.calc_expression = ""
+        st.session_state.chat_draft = ""
         st.rerun()
 
 # =====================================
@@ -396,23 +399,77 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # =====================================
-# 10. INPUT & EXECUTION LAYER
+# 10. INPUT & EXECUTION LAYER (WITH CENGAGE CHART)
 # =====================================
-user_query = st.chat_input(lang["chat_placeholder"])
 
+# Check for a Quick-Load bypass first
 if st.session_state.quick_prompt:
-    user_query = st.session_state.quick_prompt
+    st.session_state.chat_draft = st.session_state.quick_prompt
     st.session_state.quick_prompt = None
 
-if user_query:
+# Cengage-style Symbol Toolbar Tray using a compact popover layout
+with st.popover("📐 Insert Math Symbols & Operations"):
+    sym_tabs = st.tabs(["Algebra", "Trig", "Calc/Stats"])
+    
+    with sym_tabs[0]:
+        s_row1 = st.columns(6)
+        s_row1[0].button("π", key="sym_pi", on_click=append_symbol_to_chat, args=("π",), use_container_width=True)
+        s_row1[1].button("√", key="sym_sqrt", on_click=append_symbol_to_chat, args=("√(",), use_container_width=True)
+        s_row1[2].button("²", key="sym_sq", on_click=append_symbol_to_chat, args=("²",), use_container_width=True)
+        s_row1[3].button("^", key="sym_pow", on_click=append_symbol_to_chat, args=("^",), use_container_width=True)
+        s_row1[4].button("±", key="sym_pm", on_click=append_symbol_to_chat, args=("±",), use_container_width=True)
+        s_row1[5].button("x", key="sym_x", on_click=append_symbol_to_chat, args=("x",), use_container_width=True)
+        
+    with sym_tabs[1]:
+        s_row2 = st.columns(5)
+        s_row2[0].button("sin", key="sym_sin", on_click=append_symbol_to_chat, args=("sin(",), use_container_width=True)
+        s_row2[1].button("cos", key="sym_cos", on_click=append_symbol_to_chat, args=("cos(",), use_container_width=True)
+        s_row2[2].button("tan", key="sym_tan", on_click=append_symbol_to_chat, args=("tan(",), use_container_width=True)
+        s_row2[3].button("θ", key="sym_theta", on_click=append_symbol_to_chat, args=("θ",), use_container_width=True)
+        s_row2[4].button("°", key="sym_deg", on_click=append_symbol_to_chat, args=("°",), use_container_width=True)
+
+    with sym_tabs[2]:
+        s_row3 = st.columns(6)
+        s_row3[0].button("∫", key="sym_int", on_click=append_symbol_to_chat, args=("∫",), use_container_width=True)
+        s_row3[1].button("d/dx", key="sym_diff", on_click=append_symbol_to_chat, args=("d/dx ",), use_container_width=True)
+        s_row3[2].button("lim", key="sym_lim", on_click=append_symbol_to_chat, args=("lim ",), use_container_width=True)
+        s_row3[3].button("∑", key="sym_sigma", on_click=append_symbol_to_chat, args=("∑",), use_container_width=True)
+        s_row3[4].button("∞", key="sym_inf", on_click=append_symbol_to_chat, args=("∞",), use_container_width=True)
+        s_row3[5].button("Δ", key="sym_delta", on_click=append_symbol_to_chat, args=("Δ",), use_container_width=True)
+
+# Coordinated Chat Entry Row
+input_col, action_col = st.columns([0.88, 0.12])
+
+with input_col:
+    user_query = st.text_input(
+        label="Chat Input Field",
+        value=st.session_state.chat_draft,
+        placeholder=lang["chat_placeholder"],
+        label_visibility="collapsed"
+    )
+
+with action_col:
+    submit_triggered = st.button("Send 🚀", use_container_width=True)
+
+# Processing Logic on submission execution
+if submit_triggered and user_query:
+    # Append user question to history tracking lists
     st.session_state.messages.append({"role": "user", "content": user_query})
+    
+    # Reset layout values safely
+    st.session_state.chat_draft = ""
+    
+    # Temporarily refresh view display to show state adjustments cleanly
+    st.rerun()
 
-    with st.chat_message("user"):
-        st.markdown(user_query)
-
+# Run actual prompt inferences if history demands attention updates
+if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
+    current_user_message = st.session_state.messages[-1]["content"]
+    
     formatted_messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
-    for msg in st.session_state.messages:
+    for msg in st.session_state.messages[:-1]:
         formatted_messages.append({"role": msg["role"], "content": msg["content"]})
+    formatted_messages.append({"role": "user", "content": current_user_message})
 
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
@@ -435,6 +492,7 @@ if user_query:
 
             response_placeholder.markdown(full_response)
             st.session_state.messages.append({"role": "assistant", "content": full_response})
+            st.rerun()
 
         except Exception as e:
             st.error(lang["error_msg"])
