@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from groq import Groq
 import math
 import re
@@ -13,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 🎨 Custom CSS Injection: BC Purple & Tiger Gold Theme ---
+# --- 🎨 Custom CSS Injection: Floating Interface Theme ---
 st.markdown("""
     <style>
     /* Title and Subtitle Styling */
@@ -55,16 +54,42 @@ st.markdown("""
         opacity: 1 !important;
     }
 
-    /* Accent lines and styling wrappers */
+    /* Accent lines and sidebar styling wrappers */
     div[data-testid="stSidebar"] { background-color: #1A1A1A; }
-    div[data-testid="stChatInput"] { border: 2px solid #4C145E !important; border-radius: 12px; }
     
-    /* Popover Menu Styling */
+    /* Ensure the conversation history doesn't get hidden behind the floating chatbar */
+    .stMainBlockContainer {
+        padding-bottom: 220px !important;
+    }
+
+    /* 🚀 PRECISION TARGETING: Lock the bottom chatbar container to the viewport */
+    div:has(> #chatbar-anchor) + div {
+        position: fixed;
+        bottom: 20px;
+        left: 58%;
+        transform: translateX(-50%);
+        width: 60%;
+        background-color: #1A1A1A !important;
+        border: 2px solid #4C145E !important;
+        border-radius: 16px;
+        padding: 16px !important;
+        z-index: 9999;
+        box-shadow: 0px -10px 30px rgba(0,0,0,0.7);
+    }
+
+    /* Style inner chat input form fields cleanly */
+    div:has(> #chatbar-anchor) + div input {
+        background-color: #262730 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #4C145E !important;
+    }
+
     div[data-testid="stPopover"] > button {
         background-color: #262730 !important;
         color: #FFD700 !important;
         border: 1px solid #4C145E !important;
         border-radius: 8px;
+        margin-bottom: 8px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -116,7 +141,7 @@ UI_TEXT = {
         "error_msg": "Error de API o autenticación. Verifica la configuración de tu sistema."
     },
     "Français": {
-        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells y Jamazio Mcphee",
+        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
         "lang_prompt": "🌍 Choisissez votre langue",
         "calc_header": "🧮 Calculatrice Avancée",
         "calc_caption": "Calculez des expressions de tous niveaux depuis la barra latérale !",
@@ -168,21 +193,28 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "calc_expression" not in st.session_state:
     st.session_state.calc_expression = ""
-if "quick_prompt" not in st.session_state:
-    st.session_state.quick_prompt = None
 if "shown_resources" not in st.session_state:
     st.session_state.shown_resources = set()
 if "custom_style" not in st.session_state:
     st.session_state.custom_style = ""
-if "target_symbol" not in st.session_state:
-    st.session_state.target_symbol = None
+if "chat_text_box" not in st.session_state:
+    st.session_state.chat_text_box = ""
+if "active_query" not in st.session_state:
+    st.session_state.active_query = None
 
 # Load active language dictionary dynamically
 lang = UI_TEXT.get(st.session_state.language, UI_TEXT["English"])
 
-# Callback to flag which symbol needs background injection
-def send_symbol_to_state(symbol):
-    st.session_state.target_symbol = symbol
+# Callback to drop selected math symbols directly into text value state
+def insert_symbol_to_state(symbol):
+    st.session_state.chat_text_box += symbol
+
+# Callback to intercept and clear form text on submit safely
+def handle_chat_submit():
+    query = st.session_state.main_chat_input_key
+    if query.strip():
+        st.session_state.active_query = query
+        st.session_state.chat_text_box = "" # Clear buffer state
 
 # =====================================
 # 4. SIDEBAR CONFIGURATION (CALCULATOR)
@@ -325,6 +357,8 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.shown_resources = set()
         st.session_state.calc_expression = ""
+        st.session_state.chat_text_box = ""
+        st.session_state.active_query = None
         st.rerun()
 
 # =====================================
@@ -339,21 +373,25 @@ st.caption(lang["caption"])
 st.markdown(lang["quick_title"])
 col1, col2, col3, col4 = st.columns(4)
 
-if col1.button(lang["ql_1_btn"], use_container_width=True): st.session_state.quick_prompt = lang["ql_1_msg"]
-if col2.button(lang["ql_2_btn"], use_container_width=True): st.session_state.quick_prompt = lang["ql_2_msg"]
-if col3.button(lang["ql_3_btn"], use_container_width=True): st.session_state.quick_prompt = lang["ql_3_msg"]
-if col4.button(lang["ql_4_btn"], use_container_width=True): st.session_state.quick_prompt = lang["ql_4_msg"]
+if col1.button(lang["ql_1_btn"], use_container_width=True): st.session_state.active_query = lang["ql_1_msg"]
+if col2.button(lang["ql_2_btn"], use_container_width=True): st.session_state.active_query = lang["ql_2_msg"]
+if col3.button(lang["ql_3_btn"], use_container_width=True): st.session_state.active_query = lang["ql_3_msg"]
+if col4.button(lang["ql_4_btn"], use_container_width=True): st.session_state.active_query = lang["ql_4_msg"]
 
 st.write("---")
 
 # =====================================
-# 7. CAMPUS DATABASE REPOSITORY LOAD
+# 7. CAMPUS DATABASE REPOSITORY LOAD (OPTIMIZED & CACHED)
 # =====================================
-try:
-    with open("benedict_info.txt", "r", encoding="utf-8") as file:
-        campus_knowledge_base = file.read()
-except FileNotFoundError:
-    campus_knowledge_base = "No supplementary historical documents found."
+@st.cache_data(ttl=3600)
+def load_verified_campus_data():
+    try:
+        with open("benedict_info.txt", "r", encoding="utf-8") as file:
+            return file.read()
+    except FileNotFoundError:
+        return "No supplementary historical documents found."
+
+campus_knowledge_base = load_verified_campus_data()
 
 # =====================================
 # 8. SOCRATIC PROMPT ENGINE CONSTRUCT
@@ -388,64 +426,61 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # =====================================
-# 10. INPUT & EXECUTION LAYER (WITH HOVERING INPUT)
+# 10. HOVERING INPUT LAYER WITH SYMBOL POPPING
 # =====================================
-
-# Background DOM Script injection engine to safely paste values into native st.chat_input
-if st.session_state.target_symbol:
-    js_injector = f"""
-    <script>
-    var textarea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
-    if (textarea) {{
-        var valueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-        valueSetter.call(textarea, textarea.value + '{st.session_state.target_symbol}');
-        textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
-        textarea.focus();
-    }}
-    </script>
-    """
-    components.html(js_injector, height=0, width=0)
-    st.session_state.target_symbol = None  # Reset tracking safely
-
-# Inline Symbol palette drop option placed cleanly at base of conversational field
-with st.popover("📐 Insert Math Symbols & Operations"):
-    sym_tabs = st.tabs(["Algebra", "Trig", "Calc/Stats"])
-    
-    with sym_tabs[0]:
-        s_row1 = st.columns(6)
-        s_row1[0].button("π", key="sym_pi", on_click=send_symbol_to_state, args=("π",), use_container_width=True)
-        s_row1[1].button("√", key="sym_sqrt", on_click=send_symbol_to_state, args=("√(",), use_container_width=True)
-        s_row1[2].button("²", key="sym_sq", on_click=send_symbol_to_state, args=("²",), use_container_width=True)
-        s_row1[3].button("^", key="sym_pow", on_click=send_symbol_to_state, args=("^",), use_container_width=True)
-        s_row1[4].button("±", key="sym_pm", on_click=send_symbol_to_state, args=("±",), use_container_width=True)
-        s_row1[5].button("x", key="sym_x", on_click=send_symbol_to_state, args=("x",), use_container_width=True)
+st.markdown('<div id="chatbar-anchor"></div>', unsafe_allow_html=True)
+with st.container():
+    # Inline Symbol grid palette drop mechanism
+    with st.popover("📐 Insert Math Symbols & Operations"):
+        sym_tabs = st.tabs(["Algebra", "Trig", "Calc/Stats"])
         
-    with sym_tabs[1]:
-        s_row2 = st.columns(5)
-        s_row2[0].button("sin", key="sym_sin", on_click=send_symbol_to_state, args=("sin(",), use_container_width=True)
-        s_row2[1].button("cos", key="sym_cos", on_click=send_symbol_to_state, args=("cos(",), use_container_width=True)
-        s_row2[2].button("tan", key="sym_tan", on_click=send_symbol_to_state, args=("tan(",), use_container_width=True)
-        s_row2[3].button("θ", key="sym_theta", on_click=send_symbol_to_state, args=("θ",), use_container_width=True)
-        s_row2[4].button("°", key="sym_deg", on_click=send_symbol_to_state, args=("°",), use_container_width=True)
+        with sym_tabs[0]:
+            s_row1 = st.columns(6)
+            s_row1[0].button("π", key="sym_pi", on_click=insert_symbol_to_state, args=("π",), use_container_width=True)
+            s_row1[1].button("√", key="sym_sqrt", on_click=insert_symbol_to_state, args=("√(",), use_container_width=True)
+            s_row1[2].button("²", key="sym_sq", on_click=insert_symbol_to_state, args=("²",), use_container_width=True)
+            s_row1[3].button("^", key="sym_pow", on_click=insert_symbol_to_state, args=("^",), use_container_width=True)
+            s_row1[4].button("±", key="sym_pm", on_click=insert_symbol_to_state, args=("±",), use_container_width=True)
+            s_row1[5].button("x", key="sym_x", on_click=insert_symbol_to_state, args=("x",), use_container_width=True)
+            
+        with sym_tabs[1]:
+            s_row2 = st.columns(5)
+            s_row2[0].button("sin", key="sym_sin", on_click=insert_symbol_to_state, args=("sin(",), use_container_width=True)
+            s_row2[1].button("cos", key="sym_cos", on_click=insert_symbol_to_state, args=("cos(",), use_container_width=True)
+            s_row2[2].button("tan", key="sym_tan", on_click=insert_symbol_to_state, args=("tan(",), use_container_width=True)
+            s_row2[3].button("θ", key="sym_theta", on_click=insert_symbol_to_state, args=("θ",), use_container_width=True)
+            s_row2[4].button("°", key="sym_deg", on_click=insert_symbol_to_state, args=("°",), use_container_width=True)
 
-    with sym_tabs[2]:
-        s_row3 = st.columns(6)
-        s_row3[0].button("∫", key="sym_int", on_click=send_symbol_to_state, args=("∫",), use_container_width=True)
-        s_row3[1].button("d/dx", key="sym_diff", on_click=send_symbol_to_state, args=("d/dx ",), use_container_width=True)
-        s_row3[2].button("lim", key="sym_lim", on_click=send_symbol_to_state, args=("lim ",), use_container_width=True)
-        s_row3[3].button("∑", key="sym_sigma", on_click=send_symbol_to_state, args=("∑",), use_container_width=True)
-        s_row3[4].button("∞", key="sym_inf", on_click=send_symbol_to_state, args=("∞",), use_container_width=True)
-        s_row3[5].button("Δ", key="sym_delta", on_click=send_symbol_to_state, args=("Δ",), use_container_width=True)
+        with sym_tabs[2]:
+            s_row3 = st.columns(6)
+            s_row3[0].button("∫", key="sym_int", on_click=insert_symbol_to_state, args=("∫",), use_container_width=True)
+            s_row3[1].button("d/dx", key="sym_diff", on_click=insert_symbol_to_state, args=("d/dx ",), use_container_width=True)
+            s_row3[2].button("lim", key="sym_lim", on_click=insert_symbol_to_state, args=("lim ",), use_container_width=True)
+            s_row3[3].button("∑", key="sym_sigma", on_click=insert_symbol_to_state, args=("∑",), use_container_width=True)
+            s_row3[4].button("∞", key="sym_inf", on_click=insert_symbol_to_state, args=("∞",), use_container_width=True)
+            s_row3[5].button("Δ", key="sym_delta", on_click=insert_symbol_to_state, args=("Δ",), use_container_width=True)
 
-# Detect if a Quick-Load starter bypass was triggered
-if st.session_state.quick_prompt:
-    user_query = st.session_state.quick_prompt
-    st.session_state.quick_prompt = None
-else:
-    # Restored Native Hovering Chat Input Bar
-    user_query = st.chat_input(lang["chat_placeholder"])
+    # Submission Form container (handles Enter keys automatically)
+    with st.form(key="chat_submission_form", clear_on_submit=False):
+        input_col, send_col = st.columns([5, 1])
+        with input_col:
+            st.text_input(
+                "Chat Input Container Window",
+                value=st.session_state.chat_text_box,
+                key="main_chat_input_key",
+                label_visibility="collapsed",
+                placeholder=lang["chat_placeholder"]
+            )
+        with send_col:
+            st.form_submit_button("Send 🚀", on_click=handle_chat_submit, use_container_width=True)
 
-if user_query:
+# =====================================
+# 11. LLM EXECUTION PIPELINE LAYER
+# =====================================
+if st.session_state.active_query:
+    user_query = st.session_state.active_query
+    st.session_state.active_query = None  # Consume prompt cleanly
+
     st.session_state.messages.append({"role": "user", "content": user_query})
 
     with st.chat_message("user"):
@@ -476,6 +511,7 @@ if user_query:
 
             response_placeholder.markdown(full_response)
             st.session_state.messages.append({"role": "assistant", "content": full_response})
+            st.rerun()
 
         except Exception as e:
             st.error(lang["error_msg"])
