@@ -7,6 +7,10 @@ import streamlit.components.v1 as components
 from groq import Groq
 import math
 import re
+# --- Added for Google Sheets Cloud Integration ---
+import gspread
+from google.oauth2.service_account import Credentials
+# -------------------------------------------------
 
 # =====================================
 # 1. PAGE SETUP & CONFIG
@@ -43,31 +47,80 @@ def load_survey_questions():
         return ["How confident do you feel about the math covered today?"]
 
 def log_conversation(chat_history):
-    """Appends the active session logs to OneDrive."""
+    """Appends the active session logs to OneDrive and streams context to Google Sheets."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
-        f.write(f"\n--- TigerMath Session: {timestamp} ---\n")
-        for msg in chat_history:
-            f.write(f"{msg['role']}: {msg['content']}\n")
+    
+    # 1. Local/OneDrive backup logging
+    try:
+        with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
+            f.write(f"\n--- TigerMath Session: {timestamp} ---\n")
+            for msg in chat_history:
+                f.write(f"{msg['role']}: {msg['content']}\n")
+    except Exception:
+        pass
+
+    # 2. Live Cloud Google Sheet sync
+    try:
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        secret_creds = dict(st.secrets["gcp_service_account"])
+        secret_creds["private_key"] = secret_creds["private_key"].replace("\\n", "\n")
+        
+        creds = Credentials.from_service_account_info(secret_creds, scopes=scopes)
+        gspread_client = gspread.authorize(creds)
+        workbook = gspread_client.open("BC_TigerMath_Feedback_Logs")
+        
+        # Safe check for optional conversation tab, otherwise logs to main sheet1 row
+        try:
+            chat_sheet = workbook.worksheet("Chat_Logs")
+        except Exception:
+            chat_sheet = workbook.sheet1
+            
+        history_str = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history])
+        style_used = st.session_state.get("custom_style", "Default Socratic")
+        chat_sheet.append_row([timestamp, "Full Conversation Log History", history_str, style_used])
+    except Exception as e:
+        st.sidebar.error(f"Chat Log Cloud Sync issue: {e}")
 
 def save_survey_feedback(question, response):
-    """Saves structured student feedback data to OneDrive."""
+    """Saves structured student feedback data to OneDrive and streams it directly to Google Sheets."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     feedback_data = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": timestamp,
         "question": question,
         "response": response
     }
-    existing_data = []
-    if os.path.exists(FEEDBACK_FILE_PATH):
-        try:
-            with open(FEEDBACK_FILE_PATH, "r", encoding="utf-8") as f:
-                existing_data = json.load(f)
-        except json.JSONDecodeError:
-            pass
-            
-    existing_data.append(feedback_data)
-    with open(FEEDBACK_FILE_PATH, "w", encoding="utf-8") as f:
-        json.dump(existing_data, f, indent=4)
+    
+    # 1. Local/OneDrive backup logging
+    try:
+        existing_data = []
+        if os.path.exists(FEEDBACK_FILE_PATH):
+            try:
+                with open(FEEDBACK_FILE_PATH, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except json.JSONDecodeError:
+                pass
+                
+        existing_data.append(feedback_data)
+        with open(FEEDBACK_FILE_PATH, "w", encoding="utf-8") as f:
+            json.dump(existing_data, f, indent=4)
+    except Exception:
+        pass
+
+    # 2. Live Cloud Google Sheet streaming
+    try:
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        secret_creds = dict(st.secrets["gcp_service_account"])
+        secret_creds["private_key"] = secret_creds["private_key"].replace("\\n", "\n")
+        
+        creds = Credentials.from_service_account_info(secret_creds, scopes=scopes)
+        gspread_client = gspread.authorize(creds)
+        
+        sheet = gspread_client.open("BC_TigerMath_Feedback_Logs").sheet1
+        style_used = st.session_state.get("custom_style", "Default Socratic")
+        
+        sheet.append_row([timestamp, question, response, style_used])
+    except Exception as e:
+        st.sidebar.error(f"Spreadsheet Cloud Sync issue: {e}")
 
 
 # --- 🎨 Custom CSS Injection: BC Purple & Tiger Gold Theme ---
@@ -174,7 +227,7 @@ UI_TEXT = {
         "error_msg": "Error de API o autenticación. Verifica la configuración de tu sistema."
     },
     "Français": {
-        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells y Jamazio Mcphee",
+        "caption": "Votre spécialiste mathématique BC | Créé por Mark Wells y Jamazio Mcphee",
         "lang_prompt": "🌍 Choisissez votre langue",
         "calc_header": "🧮 Calculatrice Avancée",
         "calc_caption": "Calculez des expressions de tous niveaux depuis la barra latérale !",
@@ -484,9 +537,9 @@ if len(st.session_state.messages) >= 4 and not st.session_state.survey_answered:
         
         if st.button("Submit Feedback", key="submit_survey_btn"):
             if survey_response.strip() != "":
-                # 1. Save feedback to OneDrive
+                # 1. Save feedback to OneDrive & Google Sheets Cloud
                 save_survey_feedback(st.session_state.survey_question, survey_response)
-                # 2. Save conversation logs to OneDrive
+                # 2. Save conversation logs to OneDrive & Google Sheets Cloud
                 log_conversation(st.session_state.messages)
                 
                 # Update status
