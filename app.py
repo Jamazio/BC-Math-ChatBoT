@@ -494,31 +494,10 @@ def get_math_resources(text):
     return list(set(results)) # Removes duplicates
 
 # =====================================
-# 8. SOCRATIC PROMPT ENGINE CONSTRUCT
+# 8. SOCRATIC PROMPT ENGINE CONSTRUCT (Note: Prompts built dynamically below)
 # =====================================
 custom_style_val = st.session_state.get("custom_style", "")
 style_instruction = f"\n- PERSONALITY/TONE MODIFIER: Adhere to this specific presentation style or persona: {custom_style_val}." if custom_style_val else ""
-
-SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
-
-CRITICAL LANGUAGE REQUIREMENT:
-{lang["sys_prompt"]} Everything you output must strictly match this language constraint.
-
-🔴 CAMPUS KNOWLEDGE EXCEPTION:
-- If the user asks general questions about Benedict College, step out of math mode entirely.
-- Answer these questions accurately using ONLY the information provided in the VERIFIED CAMPUS DATA below. Do NOT use the Socratic method for these topics.
-
-📋 VERIFIED CAMPUS DATA FROM REPOSITORY:
-{campus_knowledge_base}
-
-📐 MATHEMATICS DIRECTIVES:
-- CRITICAL DIRECTIVE: For all math problems, NEVER give the user the final solution or write out a complete step-by-step answer upfront. Your core job is to guide them to discover it.
-1. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question to guide the student.
-2. If the user says they are completely stuck, provide a brief micro-explanation of the underlying rule.
-3. Keep responses highly interactive and conversational. Never write long blocks of text.
-4. If they make an error, point out the breakdown in logic gently.
-5. Only confirm the final answer after they have calculated it themselves.
-"""
 
 # =====================================
 # 9. RENDER EXISTING CHAT HISTORY
@@ -615,9 +594,38 @@ if user_query:
     with st.chat_message("user"):
         st.markdown(user_query)
 
+    # 🔍 Token Optimizer Check: Only include repository when Benedict keywords are targeted
+    query_lower = user_query.lower()
+    if "benedict" in query_lower or "college" in query_lower or "campus" in query_lower:
+        active_knowledge = campus_knowledge_base
+    else:
+        active_knowledge = "[Campus repository data hidden to save token bandwidth. The user is asking a normal problem.]"
+
+    # Re-construct system engine instructions dynamically with our optimized context size
+    DYNAMIC_SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
+
+CRITICAL LANGUAGE REQUIREMENT:
+{lang["sys_prompt"]} Everything you output must strictly match this language constraint.
+
+🔴 CAMPUS KNOWLEDGE EXCEPTION:
+- If the user asks general questions about Benedict College, step out of math mode entirely.
+- Answer these questions accurately using ONLY the information provided in the VERIFIED CAMPUS DATA below. Do NOT use the Socratic method for these topics.
+
+📋 VERIFIED CAMPUS DATA FROM REPOSITORY:
+{active_knowledge}
+
+📐 MATHEMATICS DIRECTIVES:
+- CRITICAL DIRECTIVE: For all math problems, NEVER give the user the final solution or write out a complete step-by-step answer upfront. Your core job is to guide them to discover it.
+1. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question to guide the student.
+2. If the user says they are completely stuck, provide a brief micro-explanation of the underlying rule.
+3. Keep responses highly interactive and conversational. Never write long blocks of text.
+4. If they make an error, point out the breakdown in logic gently.
+5. Only confirm the final answer after they have calculated it themselves.
+"""
+
     # Build conversation context
     formatted_messages = [
-        {"role": "system", "content": SYSTEM_INSTRUCTION}
+        {"role": "system", "content": DYNAMIC_SYSTEM_INSTRUCTION}
     ]
     
     # Context window optimization
@@ -642,7 +650,7 @@ if user_query:
             client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
             response_stream = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="llama-3.1-8b-instant",  # Swapped to high-capacity model
                 messages=formatted_messages,
                 temperature=0.6,
                 stream=True
