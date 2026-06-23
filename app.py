@@ -632,12 +632,27 @@ if user_query:
         try:
             client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-            response_stream = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=formatted_messages,
-                temperature=0.6,
-                stream=True
-            )
+            # 🚀 Primary Attempt: Try generating with the heavy 70B model
+            try:
+                response_stream = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=formatted_messages,
+                    temperature=0.6,
+                    stream=True
+                )
+            except Exception as model_error:
+                error_str = str(model_error)
+                # 🔄 Fallback Trigger: If hitting rate limits, gracefully switch to the high-limit 8B model
+                if "429" in error_str or "rate_limit" in error_str.lower():
+                    print("⚠️ [RATE LIMIT] 70B model capped. Automatically falling back to 8B model...")
+                    response_stream = client.chat.completions.create(
+                        model="llama-3.1-8b-instant",
+                        messages=formatted_messages,
+                        temperature=0.6,
+                        stream=True
+                    )
+                else:
+                    raise model_error
 
             for chunk in response_stream:
                 content = getattr(chunk.choices[0].delta, "content", None)
