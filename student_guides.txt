@@ -1,0 +1,16 @@
+### Welcome to BC TigerMath AI: Student Training Guide
+TigerMath is your Socratic math partner. It will not just give you the answer; it will guide you to it!
+
+1. HOW TO ASK QUESTIONS: 
+   - Be specific about your math topic (e.g., "How do I factor this quadratic?").
+   - Use the 'Insert Math Symbols' popover to add complex notation like integrals, limits, or exponents to your chat input.
+
+2. USING THE CALCULATOR:
+   - Use the sidebar calculator for quick numerical checks before asking the AI to explain the logic.
+
+3. GETTING UNSTUCK:
+   - If you are lost, tell the AI: "I am completely stuck." It will provide a micro-explanation of the rule.
+   - Use the 'Quick-Load' buttons for common algebra, calculus, or stats problems to see examples of how to format your questions.
+
+4. LEARNING PATH:
+   - The AI will provide links to study guides (external sources) when you discuss specific topics. Use these to reinforce your lesson plans!
