@@ -230,38 +230,53 @@ with st.sidebar:
             if not expr:
                 return
 
+            # Clean up basic operators
             expr = expr.replace("×", "*").replace("÷", "/")
             expr = expr.replace("π", "pi").replace("e", "e")
             expr = expr.replace("√(", "sqrt(")
 
+            # Handle implicit multiplication (e.g., "5pi" -> "5*pi")
             expr = re.sub(r'(\d|pi|e)\s*([a-zA-Z\(])', r'\1*\2', expr)
             expr = re.sub(r'([\)])\s*([0-9a-zA-Z\(])', r'\1*\2', expr)
             expr = expr.replace("^", "**")
             
+            # Handle factorials (Converts "5!" to "factorial(5)" and "(3+2)!" to "factorial((3+2))")
+            expr = re.sub(r'(\d+(?:\.\d+)?)!', r'factorial(\1)', expr)
+            expr = re.sub(r'(\([^()]+\))!', r'factorial(\1)', expr)
+
+            # Auto-close hanging brackets
             open_brackets = expr.count("(")
             close_brackets = expr.count(")")
             if open_brackets > close_brackets:
                 expr += ")" * (open_brackets - close_brackets)
 
+            # HELPER: Snaps extremely tiny floating point errors (like sin(pi)) exactly to 0
+            def snap(val):
+                return 0.0 if abs(val) < 1e-10 else val
+
+            # Allowed math environment (Switched to Radians and added factorial mapping)
             allowed_env = {
-                "sin": lambda x: math.sin(math.radians(x)),
-                "cos": lambda x: math.cos(math.radians(x)),
-                "tan": lambda x: math.tan(math.radians(x)),
+                "sin": lambda x: snap(math.sin(x)),
+                "cos": lambda x: snap(math.cos(x)),
+                "tan": lambda x: snap(math.tan(x)),
                 "sqrt": math.sqrt,
                 "ln": math.log,
                 "log": math.log10,
                 "pi": math.pi,
                 "e": math.e,
+                "factorial": math.factorial,
                 "__builtins__": None
             }
             
             raw_result = eval(expr, allowed_env, {})
             
+            # Format the output so it looks clean on the UI
             if isinstance(raw_result, (int, float)):
                 rounded_result = round(raw_result, 10)
                 if isinstance(rounded_result, float) and rounded_result.is_integer():
                     rounded_result = int(rounded_result)
                 st.session_state.calc_expression = str(rounded_result)
+                
         except Exception:
             st.session_state.calc_expression = "Error"
 
@@ -322,14 +337,12 @@ with st.sidebar:
     st.header(lang["ctrl_header"])
     st.info(lang["ctrl_info"])
 
-
     if st.button(lang["reset_btn"], use_container_width=True):
         st.session_state.messages = []
         st.session_state.shown_resources = set()
         st.session_state.calc_expression = ""
         st.rerun()
 
-# Add this inside your "with st.sidebar:" block, near the bottom
     st.write("---")
     st.header("📖 Training Guides")
     
@@ -338,6 +351,7 @@ with st.sidebar:
         
     if st.button("👩‍🏫 Faculty Guide", use_container_width=True):
         st.session_state.quick_prompt = "Can you provide the Faculty Training Guide and explain how I can use TigerMath to create lesson plans?"
+
 # =====================================
 # 5. MAIN CONTENT AREA
 # =====================================
@@ -347,7 +361,6 @@ st.caption(lang["caption"])
 # =====================================
 # 6. QUICK-LOAD PROBLEM STARTERS
 # =====================================
-
 
 st.markdown(lang["quick_title"])
 col1, col2, col3, col4 = st.columns(4)
@@ -386,6 +399,7 @@ def get_math_resources(text):
         if key in q:
             results.extend(links)
     return list(set(results)) # Removes duplicates
+
 # =====================================
 # 8. SOCRATIC PROMPT ENGINE CONSTRUCT
 # =====================================
@@ -403,13 +417,6 @@ try:
 except:
     faculty_training_guide = "No faculty guide file found."
 
-# 2. Build the System Instruction
-SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor at Benedict College.
-
-📋 MANDATORY KNOWLEDGE BASE:
-STUDENT GUIDE: {student_training_guide}
-FACULTY GUIDE: {faculty_training_guide}
-"""
 # 2. Get Custom Style
 custom_style_val = st.session_state.get("custom_style", "")
 style_instruction = f"\n- PERSONALITY: {custom_style_val}." if custom_style_val else ""
@@ -444,8 +451,6 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- 10. INPUT & EXECUTION LAYER ---
-# --- 10. Handle Input (Chat Box OR Quick Load Buttons) ---
 # =====================================
 # 10. INPUT & EXECUTION LAYER (WITH NATIVE HOVERING INPUT)
 # =====================================
