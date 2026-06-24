@@ -1,183 +1,73 @@
-import os
-import json
-import random
-from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
 import math
 import re
-# --- Added for Google Sheets Cloud Integration ---
-import gspread
-from google.oauth2.service_account import Credentials
-# -------------------------------------------------
 
 # =====================================
 # 1. PAGE SETUP & CONFIG
 # =====================================
 st.set_page_config(
-    page_title="BC TigerMath AI",
-    page_icon="🐅",
+    page_title="BC TigerMath AI", 
+    page_icon="🐅", 
     layout="wide"
 )
 
-# --- 📁 OneDrive & Data Logging Setup ---
-LOCAL_ONEDRIVE_PATH = r"C:\Users\Jamazio Mcphee\OneDrive - Benedict College\School\SURI RESEARCH\Chatbot_Data"
-
-# Smart Switch: Use your absolute OneDrive path on Windows, fall back to local directory on Cloud Linux
-if os.path.exists(r"C:\Users"):
-    ONEDRIVE_DIR = LOCAL_ONEDRIVE_PATH
-else:
-    ONEDRIVE_DIR = "Chatbot_Data"
-
-LOG_FILE_PATH = os.path.join(ONEDRIVE_DIR, "communication_logs.txt")
-FEEDBACK_FILE_PATH = os.path.join(ONEDRIVE_DIR, "survey_feedback.json")
-SURVEY_QUESTIONS_FILE = "survey_questions.json"
-
-# Create the folder automatically if it doesn't exist locally
-os.makedirs(ONEDRIVE_DIR, exist_ok=True)
-
-def load_survey_questions():
-    """Reads survey questions from the local JSON file."""
-    try:
-        with open(SURVEY_QUESTIONS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return ["How confident do you feel about the math covered today?"]
-
-def log_conversation(chat_history):
-    """Appends the active session logs to OneDrive and streams context to Google Sheets."""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"⏳ [CLOUD LOG] Starting full conversation sync to Google Sheets...")
-    
-    # 1. Local/OneDrive backup logging
-    try:
-        with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
-            f.write(f"\n--- TigerMath Session: {timestamp} ---\n")
-            for msg in chat_history:
-                f.write(f"{msg['role']}: {msg['content']}\n")
-    except Exception as e:
-        print(f"⚠️ Local OneDrive backup log skipped or failed: {e}")
-
-    # 2. Live Cloud Google Sheet sync
-    try:
-        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        secret_creds = dict(st.secrets["gcp_service_account"])
-        secret_creds["private_key"] = secret_creds["private_key"].replace("\\n", "\n")
-        
-        creds = Credentials.from_service_account_info(secret_creds, scopes=scopes)
-        gspread_client = gspread.authorize(creds)
-        workbook = gspread_client.open("BC_TigerMath_Feedback_Logs")
-        
-        # Safe check for optional conversation tab, otherwise logs to main sheet1 row
-        try:
-            chat_sheet = workbook.worksheet("Chat_Logs")
-            print("📁 Target Worksheet found: 'Chat_Logs'")
-        except Exception:
-            chat_sheet = workbook.sheet1
-            print("📁 'Chat_Logs' tab not found, falling back to primary sheet tab index.")
-            
-        history_str = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history])
-        style_used = st.session_state.get("custom_style", "Default Socratic")
-        
-        chat_sheet.append_row([timestamp, "Full Conversation Log History", history_str, style_used])
-        print("✅ [CLOUD LOG] Full conversation log successfully added to Google Sheets!")
-    except Exception as e:
-        print(f"🔴 [GOOGLE SHEETS CHAT LOG ERROR]: {e}")
-        st.sidebar.error(f"Chat Log Cloud Sync issue: {e}")
-
-def save_survey_feedback(question, response):
-    """Saves structured student feedback data to OneDrive and streams it directly to Google Sheets."""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"⏳ [CLOUD LOG] Sending student feedback response to Google Sheets...")
-    
-    feedback_data = {
-        "timestamp": timestamp,
-        "question": question,
-        "response": response
-    }
-    
-    # 1. Local/OneDrive backup logging
-    try:
-        existing_data = []
-        if os.path.exists(FEEDBACK_FILE_PATH):
-            try:
-                with open(FEEDBACK_FILE_PATH, "r", encoding="utf-8") as f:
-                    existing_data = json.load(f)
-            except json.JSONDecodeError:
-                pass
-                
-        existing_data.append(feedback_data)
-        with open(FEEDBACK_FILE_PATH, "w", encoding="utf-8") as f:
-            json.dump(existing_data, f, indent=4)
-    except Exception as e:
-        print(f"⚠️ Local OneDrive feedback JSON backup skipped or failed: {e}")
-
-    # 2. Live Cloud Google Sheet streaming
-    try:
-        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        secret_creds = dict(st.secrets["gcp_service_account"])
-        secret_creds["private_key"] = secret_creds["private_key"].replace("\\n", "\n")
-        
-        creds = Credentials.from_service_account_info(secret_creds, scopes=scopes)
-        gspread_client = gspread.authorize(creds)
-        
-        sheet = gspread_client.open("BC_TigerMath_Feedback_Logs").sheet1
-        style_used = st.session_state.get("custom_style", "Default Socratic")
-        
-        sheet.append_row([timestamp, question, response, style_used])
-        print("✅ [CLOUD LOG] Student feedback row successfully added to Google Sheets!")
-    except Exception as e:
-        print(f"🔴 [GOOGLE SHEETS FEEDBACK ERROR]: {e}")
-        st.sidebar.error(f"Spreadsheet Cloud Sync issue: {e}")
-
-
 # --- 🎨 Custom CSS Injection: BC Purple & Tiger Gold Theme ---
 st.markdown("""
-<style>
-h1 {
-    color: #FFD700 !important;
-    font-family: 'Arial Black', Gadget, sans-serif;
-}
-.stCaption {
-    color: #F0F2F6 !important;
-    font-style: italic;
-}
-div.stButton > button {
-    background-color: #4C145E !important;
-    color: #FFD700 !important;
-    border: 2px solid #FFD700 !important;
-    border-radius: 8px;
-    font-weight: bold;
-    font-size: 14px;
-    height: 40px;
-    transition: all 0.3s ease;
-    padding: 0px !important;
-}
-div.stButton > button:hover {
-    background-color: #FFD700 !important;
-    color: #4C145E !important;
-    border: 2px solid #4C145E !important;
-}
-input:disabled {
-    background-color: #262730 !important;
-    color: #FFD700 !important;
-    font-family: 'Courier New', Courier, monospace !important;
-    font-size: 18px !important;
-    font-weight: bold !important;
-    text-align: right !important;
-    opacity: 1 !important;
-}
-div[data-testid="stSidebar"] { background-color: #1A1A1A; }
-div[data-testid="stChatInput"] { border: 2px solid #4C145E !important; border-radius: 12px; }
-div[data-testid="stPopover"] > button {
-    background-color: #262730 !important;
-    color: #FFD700 !important;
-    border: 1px solid #4C145E !important;
-    border-radius: 8px;
-    width: 100%;
-}
-</style>
+    <style>
+    /* Title and Subtitle Styling */
+    h1 { 
+        color: #FFD700 !important; 
+        font-family: 'Arial Black', Gadget, sans-serif; 
+    }
+    .stCaption { 
+        color: #F0F2F6 !important; 
+        font-style: italic; 
+    }
+
+    /* Custom Design for the Calculator & Symbol Grid Buttons */
+    div.stButton > button {
+        background-color: #4C145E !important;
+        color: #FFD700 !important;
+        border: 2px solid #FFD700 !important;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 14px;
+        height: 40px;
+        transition: all 0.3s ease;
+        padding: 0px !important;
+    }
+    div.stButton > button:hover {
+        background-color: #FFD700 !important;
+        color: #4C145E !important;
+        border: 2px solid #4C145E !important;
+    }
+
+    /* Calculator Display Window Screen */
+    input:disabled {
+        background-color: #262730 !important;
+        color: #FFD700 !important;
+        font-family: 'Courier New', Courier, monospace !important;
+        font-size: 18px !important;
+        font-weight: bold !important;
+        text-align: right !important;
+        opacity: 1 !important;
+    }
+
+    /* Accent lines and styling wrappers */
+    div[data-testid="stSidebar"] { background-color: #1A1A1A; }
+    div[data-testid="stChatInput"] { border: 2px solid #4C145E !important; border-radius: 12px; }
+    
+    /* Popover Menu Styling */
+    div[data-testid="stPopover"] > button {
+        background-color: #262730 !important;
+        color: #FFD700 !important;
+        border: 1px solid #4C145E !important;
+        border-radius: 8px;
+        width: 100%;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
 # =====================================
@@ -227,7 +117,7 @@ UI_TEXT = {
         "error_msg": "Error de API o autenticación. Verifica la configuración de tu sistema."
     },
     "Français": {
-        "caption": "Votre spécialiste mathématique BC | Créé por Mark Wells y Jamazio Mcphee",
+        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
         "lang_prompt": "🌍 Choisissez votre langue",
         "calc_header": "🧮 Calculatrice Avancée",
         "calc_caption": "Calculez des expressions de tous niveaux depuis la barra latérale !",
@@ -288,16 +178,10 @@ if "custom_style" not in st.session_state:
 if "target_symbol" not in st.session_state:
     st.session_state.target_symbol = None
 
-# --- Survey State Tracking Variables ---
-if "survey_question" not in st.session_state:
-    questions = load_survey_questions()
-    st.session_state.survey_question = random.choice(questions)
-if "survey_answered" not in st.session_state:
-    st.session_state.survey_answered = False
-
 # Load active language dictionary dynamically
 lang = UI_TEXT.get(st.session_state.language, UI_TEXT["English"])
 
+# Callback to flag which symbol needs background injection
 def send_symbol_to_state(symbol):
     st.session_state.target_symbol = symbol
 
@@ -318,9 +202,11 @@ with st.sidebar:
     )
 
     st.write("---")
+
     st.header(lang["calc_header"])
     st.caption(lang["calc_caption"])
 
+    # Core Calculator Callbacks
     def append_calc(char):
         if st.session_state.calc_expression in ["Error", "0"]:
             st.session_state.calc_expression = ""
@@ -351,6 +237,7 @@ with st.sidebar:
             expr = re.sub(r'(\d|pi|e)\s*([a-zA-Z\(])', r'\1*\2', expr)
             expr = re.sub(r'([\)])\s*([0-9a-zA-Z\(])', r'\1*\2', expr)
             expr = expr.replace("^", "**")
+            
             open_brackets = expr.count("(")
             close_brackets = expr.count(")")
             if open_brackets > close_brackets:
@@ -367,7 +254,9 @@ with st.sidebar:
                 "e": math.e,
                 "__builtins__": None
             }
+            
             raw_result = eval(expr, allowed_env, {})
+            
             if isinstance(raw_result, (int, float)):
                 rounded_result = round(raw_result, 10)
                 if isinstance(rounded_result, float) and rounded_result.is_integer():
@@ -403,7 +292,7 @@ with st.sidebar:
                     if char == "=":
                         st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=evaluate_calc, use_container_width=True)
                     elif char == " " or char == "":
-                        st.write("")
+                        st.write("") 
                     else:
                         st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=append_calc, args=(char,), use_container_width=True)
 
@@ -433,15 +322,22 @@ with st.sidebar:
     st.header(lang["ctrl_header"])
     st.info(lang["ctrl_info"])
 
+
     if st.button(lang["reset_btn"], use_container_width=True):
         st.session_state.messages = []
         st.session_state.shown_resources = set()
         st.session_state.calc_expression = ""
-        st.session_state.survey_answered = False
-        questions = load_survey_questions()
-        st.session_state.survey_question = random.choice(questions)
         st.rerun()
 
+# Add this inside your "with st.sidebar:" block, near the bottom
+    st.write("---")
+    st.header("📖 Training Guides")
+    
+    if st.button("🎓 Student Guide", use_container_width=True):
+        st.session_state.quick_prompt = "Can you provide the Student Training Guide and explain how I can use TigerMath for my math lessons?"
+        
+    if st.button("👩‍🏫 Faculty Guide", use_container_width=True):
+        st.session_state.quick_prompt = "Can you provide the Faculty Training Guide and explain how I can use TigerMath to create lesson plans?"
 # =====================================
 # 5. MAIN CONTENT AREA
 # =====================================
@@ -451,6 +347,8 @@ st.caption(lang["caption"])
 # =====================================
 # 6. QUICK-LOAD PROBLEM STARTERS
 # =====================================
+
+
 st.markdown(lang["quick_title"])
 col1, col2, col3, col4 = st.columns(4)
 
@@ -487,68 +385,72 @@ def get_math_resources(text):
     for key, links in resource_map.items():
         if key in q:
             results.extend(links)
-    return list(set(results))
-
+    return list(set(results)) # Removes duplicates
 # =====================================
 # 8. SOCRATIC PROMPT ENGINE CONSTRUCT
 # =====================================
-custom_style_val = st.session_state.get("custom_style", "")
-style_instruction = f"\n- PERSONALITY/TONE MODIFIER: Adhere to this specific presentation style or persona: {custom_style_val}." if custom_style_val else ""
 
+# 1. Load the Guides
+try:
+    with open("student_guides.txt", "r", encoding="utf-8") as f:
+        student_training_guide = f.read()
+except:
+    student_training_guide = "No student guide file found."
+
+try:
+    with open("faculty_guides.txt", "r", encoding="utf-8") as f:
+        faculty_training_guide = f.read()
+except:
+    faculty_training_guide = "No faculty guide file found."
+
+# 2. Build the System Instruction
+SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor at Benedict College.
+
+📋 MANDATORY KNOWLEDGE BASE:
+STUDENT GUIDE: {student_training_guide}
+FACULTY GUIDE: {faculty_training_guide}
+"""
+# 2. Get Custom Style
+custom_style_val = st.session_state.get("custom_style", "")
+style_instruction = f"\n- PERSONALITY: {custom_style_val}." if custom_style_val else ""
+
+# 3. Build the Master System Instruction (Single block)
 SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
 
+📋 TRAINING GUIDES:
+STUDENT GUIDE: {student_training_guide}
+FACULTY GUIDE: {faculty_training_guide}
+
+CRITICAL DIRECTIVE: When a user asks for these training guides, provide the content from the sections above. Do NOT say you do not have access.
+
 CRITICAL LANGUAGE REQUIREMENT:
-{lang["sys_prompt"]} Everything you output must strictly match this language constraint.
+{lang["sys_prompt"]}
 
 🔴 CAMPUS KNOWLEDGE EXCEPTION:
-- If the user asks general questions about Benedict College, step out of math mode entirely.
-- Answer these questions accurately using ONLY the information provided in the VERIFIED CAMPUS DATA below. Do NOT use the Socratic method for these topics.
-
-📋 VERIFIED CAMPUS DATA FROM REPOSITORY:
+- Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
 {campus_knowledge_base}
 
 📐 MATHEMATICS DIRECTIVES:
-- CRITICAL DIRECTIVE: For all math problems, NEVER give the user the final solution or write out a complete step-by-step answer upfront. Your core job is to guide them to discover it.
-1. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question to guide the student.
-2. If the user says they are completely stuck, provide a brief micro-explanation of the underlying rule.
-3. Keep responses highly interactive and conversational. Never write long blocks of text.
-4. If they make an error, point out the breakdown in logic gently.
-5. Only confirm the final answer after they have calculated it themselves.
+- NEVER give the user the final solution upfront. Guide them to discover it.
+- Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
+- If they make an error, point out the breakdown in logic gently.
+- Keep responses highly interactive and conversational. Never write long blocks of text.
 """
 
 # =====================================
-# 9. RENDER EXISTING CHAT HISTORY & EMBEDDED SURVEY
+# 9. RENDER EXISTING CHAT HISTORY
 # =====================================
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- Strategically Embedded Survey Question ---
-if len(st.session_state.messages) >= 4 and not st.session_state.survey_answered:
-    with st.chat_message("assistant"):
-        st.markdown(f"📊 **Quick Student Feedback Check-In:**\n\n*{st.session_state.survey_question}*")
-        
-        survey_response = st.text_input("Type your response here:", key="embedded_survey_input")
-        
-        if st.button("Submit Feedback", key="submit_survey_btn"):
-            print("🟢 [BUTTON CLICKED] 'Submit Feedback' was triggered by user.")
-            if survey_response.strip() != "":
-                # 1. Save feedback to OneDrive & Google Sheets Cloud
-                save_survey_feedback(st.session_state.survey_question, survey_response)
-                
-                # 2. Save conversation logs to OneDrive & Google Sheets Cloud
-                log_conversation(st.session_state.messages)
-                
-                # Update status and force interface cleanup
-                st.session_state.survey_answered = True
-                print("🔄 Execution complete. Rerunning app interface to hide survey module.")
-                st.rerun()
-            else:
-                st.warning("Please provide a response before submitting.")
-
+# --- 10. INPUT & EXECUTION LAYER ---
+# --- 10. Handle Input (Chat Box OR Quick Load Buttons) ---
 # =====================================
 # 10. INPUT & EXECUTION LAYER (WITH NATIVE HOVERING INPUT)
 # =====================================
+
+# Background DOM Script injection engine to safely paste values into native st.chat_input
 if st.session_state.target_symbol:
     safe_symbol = st.session_state.target_symbol.replace("'", "\\'")
     js_injector = f"""
@@ -563,8 +465,9 @@ if st.session_state.target_symbol:
     </script>
     """
     components.html(js_injector, height=0, width=0)
-    st.session_state.target_symbol = None
+    st.session_state.target_symbol = None  # Reset tracking safely
 
+# Math symbols placed perfectly right above the sticky input area
 with st.popover("📐 Insert Math Symbols & Operations"):
     sym_tabs = st.tabs(["Algebra", "Trig", "Calc/Stats"])
     
@@ -596,11 +499,13 @@ with st.popover("📐 Insert Math Symbols & Operations"):
 
 user_query = st.chat_input(lang["chat_placeholder"])
 
+# Quick-load buttons
 if st.session_state.quick_prompt:
     user_query = st.session_state.quick_prompt
     st.session_state.quick_prompt = None
 
 if user_query:
+    # Save user message
     st.session_state.messages.append({
         "role": "user",
         "content": user_query
@@ -609,18 +514,20 @@ if user_query:
     with st.chat_message("user"):
         st.markdown(user_query)
 
+    # Build conversation context
     formatted_messages = [
         {"role": "system", "content": SYSTEM_INSTRUCTION}
     ]
-    
-    for msg in st.session_state.messages[-6:]:
+    for msg in st.session_state.messages:
         formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
         full_response = ""
+        # Track links we have already shown in this turn to avoid duplicates
         seen_urls = set()
 
+        # 🧠 Step 1: Scan user query for instant reference links
         user_resources = get_math_resources(user_query)
         if user_resources:
             full_response += "📚 **Quick References:**\n"
@@ -632,44 +539,35 @@ if user_query:
         try:
             client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
-            # 🚀 Primary Attempt: Try generating with the heavy 70B model
-            try:
-                response_stream = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=formatted_messages,
-                    temperature=0.6,
-                    stream=True
-                )
-            except Exception as model_error:
-                error_str = str(model_error)
-                # 🔄 Fallback Trigger: If hitting rate limits, gracefully switch to the high-limit 8B model
-                if "429" in error_str or "rate_limit" in error_str.lower():
-                    print("⚠️ [RATE LIMIT] 70B model capped. Automatically falling back to 8B model...")
-                    response_stream = client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
-                        messages=formatted_messages,
-                        temperature=0.6,
-                        stream=True
-                    )
-                else:
-                    raise model_error
+            response_stream = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=formatted_messages,
+                temperature=0.6,
+                stream=True
+            )
 
+            # 🤖 Step 2: Stream the AI's Socratic guidance
             for chunk in response_stream:
                 content = getattr(chunk.choices[0].delta, "content", None)
                 if content:
                     full_response += content
                     response_placeholder.markdown(full_response + "▌")
 
+            # 🧠 Step 3: Scan what the AI said and append new links
             ai_resources = get_math_resources(full_response)
+            # Filter out links that were already added during Step 1
             new_resources = [res for res in ai_resources if res[1] not in seen_urls]
 
             if new_resources:
+                # Append a footer section to the response
                 full_response += "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
                 for title, url in new_resources:
                     full_response += f"• [{title}]({url})\n"
 
+            # Final static render of everything combined
             response_placeholder.markdown(full_response)
 
+            # Save the comprehensive response to session state
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": full_response
