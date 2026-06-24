@@ -401,10 +401,8 @@ def get_math_resources(text):
     return list(set(results)) # Removes duplicates
 
 # =====================================
-# 8. SOCRATIC PROMPT ENGINE CONSTRUCT
+# 8. PRE-LOAD TRAINING GUIDES
 # =====================================
-
-# 1. Load the Guides
 try:
     with open("student_guides.txt", "r", encoding="utf-8") as f:
         student_training_guide = f.read()
@@ -416,33 +414,6 @@ try:
         faculty_training_guide = f.read()
 except:
     faculty_training_guide = "No faculty guide file found."
-
-# 2. Get Custom Style
-custom_style_val = st.session_state.get("custom_style", "")
-style_instruction = f"\n- PERSONALITY: {custom_style_val}." if custom_style_val else ""
-
-# 3. Build the Master System Instruction (Single block)
-SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
-
-📋 TRAINING GUIDES:
-STUDENT GUIDE: {student_training_guide}
-FACULTY GUIDE: {faculty_training_guide}
-
-CRITICAL DIRECTIVE: When a user asks for these training guides, provide the content from the sections above. Do NOT say you do not have access.
-
-CRITICAL LANGUAGE REQUIREMENT:
-{lang["sys_prompt"]}
-
-🔴 CAMPUS KNOWLEDGE EXCEPTION:
-- Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
-{campus_knowledge_base}
-
-📐 MATHEMATICS DIRECTIVES:
-- WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!", and ask what they want to tackle next. Do NOT drag out simple questions or keep probing once the correct answer is given.
-- WHEN THE USER IS STUCK/LEARNING: NEVER give the final solution upfront. Guide them to discover it. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
-- If they make an error, point out the breakdown in logic gently.
-- Keep responses highly interactive and conversational. Never write long blocks of text.
-"""
 
 # =====================================
 # 9. RENDER EXISTING CHAT HISTORY
@@ -504,7 +475,7 @@ with st.popover("📐 Insert Math Symbols & Operations"):
 
 user_query = st.chat_input(lang["chat_placeholder"])
 
-# Quick-load buttons
+# Quick-load buttons trigger check
 if st.session_state.quick_prompt:
     user_query = st.session_state.quick_prompt
     st.session_state.quick_prompt = None
@@ -519,7 +490,38 @@ if user_query:
     with st.chat_message("user"):
         st.markdown(user_query)
 
-    # Build conversation context
+    # 🧠 PERFORMANCE OPTIMIZATION: Build Dynamic System Instruction Context Engine
+    custom_style_val = st.session_state.get("custom_style", "")
+    style_instruction = f"\n- PERSONALITY: {custom_style_val}." if custom_style_val else ""
+    
+    # Check if the query specifically touches on Benedict College details
+    campus_context = ""
+    if any(kw in user_query.lower() for kw in ["benedict", "college", "campus", "bc ", "tiger", "history", "founded", "faculty"]):
+        campus_context = f"""
+🔴 CAMPUS KNOWLEDGE EXCEPTION:
+- Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
+{campus_knowledge_base}"""
+
+    SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
+
+📋 TRAINING GUIDES:
+STUDENT GUIDE: {student_training_guide}
+FACULTY GUIDE: {faculty_training_guide}
+
+CRITICAL DIRECTIVE: When a user asks for these training guides, provide the content from the sections above. Do NOT say you do not have access.
+
+CRITICAL LANGUAGE REQUIREMENT:
+{lang["sys_prompt"]}
+{campus_context}
+
+📐 MATHEMATICS DIRECTIVES:
+- WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!", and ask what they want to tackle next. Do NOT drag out simple questions or keep probing once the correct answer is given.
+- WHEN THE USER IS STUCK/LEARNING: NEVER give the final solution upfront. Guide them to discover it. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
+- If they make an error, point out the breakdown in logic gently.
+- Keep responses highly interactive and conversational. Never write long blocks of text.
+"""
+
+    # Build conversation context arrays
     formatted_messages = [
         {"role": "system", "content": SYSTEM_INSTRUCTION}
     ]
@@ -529,7 +531,6 @@ if user_query:
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
         full_response = ""
-        # Track links we have already shown in this turn to avoid duplicates
         seen_urls = set()
 
         # 🧠 Step 1: Scan user query for instant reference links
@@ -551,7 +552,7 @@ if user_query:
                 stream=True
             )
 
-            # 🤖 Step 2: Stream the AI's Socratic guidance
+            # 🤖 Step 2: Stream the AI's optimized guidance
             for chunk in response_stream:
                 content = getattr(chunk.choices[0].delta, "content", None)
                 if content:
@@ -560,16 +561,14 @@ if user_query:
 
             # 🧠 Step 3: Scan what the AI said and append new links
             ai_resources = get_math_resources(full_response)
-            # Filter out links that were already added during Step 1
             new_resources = [res for res in ai_resources if res[1] not in seen_urls]
 
             if new_resources:
-                # Append a footer section to the response
                 full_response += "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
                 for title, url in new_resources:
                     full_response += f"• [{title}]({url})\n"
 
-            # Final static render of everything combined
+            # Final static render
             response_placeholder.markdown(full_response)
 
             # Save the comprehensive response to session state
