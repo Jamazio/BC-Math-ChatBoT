@@ -186,152 +186,165 @@ def send_symbol_to_state(symbol):
     st.session_state.target_symbol = symbol
 
 # =====================================
-# 4. SIDEBAR CONFIGURATION (CALCULATOR)
+# 4. SIDEBAR CONFIGURATION
 # =====================================
 with st.sidebar:
-    st.radio(
-        "🌍 Choose Language",
-        list(UI_TEXT.keys()),
-        key="language"
-    )
-
-    st.text_input(
-        "🎭 Custom Persona / Style:",
-        placeholder="e.g., Southern style, surfer slang, hyper energetic...",
-        key="custom_style"
-    )
+    # --- MOVED TO TOP: Training Guides ---
+    st.header("📖 Training Guides")
+    
+    if st.button("🎓 Student Guide", use_container_width=True):
+        st.session_state.quick_prompt = "Can you provide the Student Training Guide and explain how I can use TigerMath for my math lessons?"
+        
+    if st.button("👩‍🏫 Faculty Guide", use_container_width=True):
+        st.session_state.quick_prompt = "Can you provide the Faculty Training Guide and explain how I can use TigerMath to create lesson plans?"
 
     st.write("---")
 
-    st.header(lang["calc_header"])
-    st.caption(lang["calc_caption"])
+    # --- COLLAPSIBLE: Language & Persona Settings ---
+    with st.expander("🌍 Language & Style Settings", expanded=False):
+        st.radio(
+            "Choose Language",
+            list(UI_TEXT.keys()),
+            key="language"
+        )
+        st.text_input(
+            "🎭 Custom Persona / Style:",
+            placeholder="e.g., Southern style, surfer slang...",
+            key="custom_style"
+        )
 
-    # Core Calculator Callbacks
-    def append_calc(char):
-        if st.session_state.calc_expression in ["Error", "0"]:
+    st.write("---")
+
+    # --- COLLAPSIBLE: Advanced Calculator ---
+    with st.expander(lang["calc_header"], expanded=True):
+        st.caption(lang["calc_caption"])
+
+        # Core Calculator Callbacks
+        def append_calc(char):
+            if st.session_state.calc_expression in ["Error", "0"]:
+                st.session_state.calc_expression = ""
+            if char == "1/x":
+                st.session_state.calc_expression += "1/("
+            else:
+                st.session_state.calc_expression += str(char)
+
+        def clear_calc():
             st.session_state.calc_expression = ""
-        if char == "1/x":
-            st.session_state.calc_expression += "1/("
-        else:
-            st.session_state.calc_expression += str(char)
 
-    def clear_calc():
-        st.session_state.calc_expression = ""
+        def delete_last_calc():
+            if st.session_state.calc_expression in ["Error", "0"]:
+                st.session_state.calc_expression = ""
+            else:
+                st.session_state.calc_expression = st.session_state.calc_expression[:-1]
 
-    def delete_last_calc():
-        if st.session_state.calc_expression in ["Error", "0"]:
-            st.session_state.calc_expression = ""
-        else:
-            st.session_state.calc_expression = st.session_state.calc_expression[:-1]
+        def evaluate_calc():
+            try:
+                expr = st.session_state.calc_expression
+                if not expr:
+                    return
 
-    def evaluate_calc():
-        try:
-            expr = st.session_state.calc_expression
-            if not expr:
-                return
+                # Clean up basic operators
+                expr = expr.replace("×", "*").replace("÷", "/")
+                expr = expr.replace("π", "pi").replace("e", "e")
+                expr = expr.replace("√(", "sqrt(")
 
-            # Clean up basic operators
-            expr = expr.replace("×", "*").replace("÷", "/")
-            expr = expr.replace("π", "pi").replace("e", "e")
-            expr = expr.replace("√(", "sqrt(")
-
-            # Handle implicit multiplication (e.g., "5pi" -> "5*pi")
-            expr = re.sub(r'(\d|pi|e)\s*([a-zA-Z\(])', r'\1*\2', expr)
-            expr = re.sub(r'([\)])\s*([0-9a-zA-Z\(])', r'\1*\2', expr)
-            expr = expr.replace("^", "**")
-            
-            # Handle factorials (Converts "5!" to "factorial(5)" and "(3+2)!" to "factorial((3+2))")
-            expr = re.sub(r'(\d+(?:\.\d+)?)!', r'factorial(\1)', expr)
-            expr = re.sub(r'(\([^()]+\))!', r'factorial(\1)', expr)
-
-            # Auto-close hanging brackets
-            open_brackets = expr.count("(")
-            close_brackets = expr.count(")")
-            if open_brackets > close_brackets:
-                expr += ")" * (open_brackets - close_brackets)
-
-            # HELPER: Snaps extremely tiny floating point errors (like sin(pi)) exactly to 0
-            def snap(val):
-                return 0.0 if abs(val) < 1e-10 else val
-
-            # Allowed math environment (Switched to Radians and added factorial mapping)
-            allowed_env = {
-                "sin": lambda x: snap(math.sin(x)),
-                "cos": lambda x: snap(math.cos(x)),
-                "tan": lambda x: snap(math.tan(x)),
-                "sqrt": math.sqrt,
-                "ln": math.log,
-                "log": math.log10,
-                "pi": math.pi,
-                "e": math.e,
-                "factorial": math.factorial,
-                "__builtins__": None
-            }
-            
-            raw_result = eval(expr, allowed_env, {})
-            
-            # Format the output so it looks clean on the UI
-            if isinstance(raw_result, (int, float)):
-                rounded_result = round(raw_result, 10)
-                if isinstance(rounded_result, float) and rounded_result.is_integer():
-                    rounded_result = int(rounded_result)
-                st.session_state.calc_expression = str(rounded_result)
+                # Handle implicit multiplication (e.g., "5pi" -> "5*pi")
+                expr = re.sub(r'(\d|pi|e)\s*([a-zA-Z\(])', r'\1*\2', expr)
+                expr = re.sub(r'([\)])\s*([0-9a-zA-Z\(])', r'\1*\2', expr)
+                expr = expr.replace("^", "**")
                 
-        except Exception:
-            st.session_state.calc_expression = "Error"
+                # Handle factorials (Converts "5!" to "factorial(5)" and "(3+2)!" to "factorial((3+2))")
+                expr = re.sub(r'(\d+(?:\.\d+)?)!', r'factorial(\1)', expr)
+                expr = re.sub(r'(\([^()]+\))!', r'factorial(\1)', expr)
 
-    st.text_input(
-        label="Calculator Screen",
-        value=st.session_state.calc_expression if st.session_state.calc_expression else "0",
-        disabled=True,
-        label_visibility="collapsed"
-    )
+                # Auto-close hanging brackets
+                open_brackets = expr.count("(")
+                close_brackets = expr.count(")")
+                if open_brackets > close_brackets:
+                    expr += ")" * (open_brackets - close_brackets)
 
-    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
-    with ctrl_col1:
-        st.button("CLR", key="btn_master_clr", on_click=clear_calc, use_container_width=True)
-    with ctrl_col2:
-        st.button("DEL", key="btn_master_del", on_click=delete_last_calc, use_container_width=True)
-    with ctrl_col3:
-        st.button("(", key="btn_master_lparen", on_click=append_calc, args=("(",), use_container_width=True)
-    with ctrl_col4:
-        st.button(")", key="btn_master_rparen", on_click=append_calc, args=(")",), use_container_width=True)
+                # HELPER: Snaps extremely tiny floating point errors (like sin(pi)) exactly to 0
+                def snap(val):
+                    return 0.0 if abs(val) < 1e-10 else val
 
-    calc_tabs = st.tabs(["🔢 Basic", "📐 Alg/Trig", "📈 Calc/Stat"])
+                # Allowed math environment
+                allowed_env = {
+                    "sin": lambda x: snap(math.sin(x)),
+                    "cos": lambda x: snap(math.cos(x)),
+                    "tan": lambda x: snap(math.tan(x)),
+                    "sqrt": math.sqrt,
+                    "ln": math.log,
+                    "log": math.log10,
+                    "pi": math.pi,
+                    "e": math.e,
+                    "factorial": math.factorial,
+                    "__builtins__": None
+                }
+                
+                raw_result = eval(expr, allowed_env, {})
+                
+                # Format the output so it looks clean on the UI
+                if isinstance(raw_result, (int, float)):
+                    rounded_result = round(raw_result, 10)
+                    if isinstance(rounded_result, float) and rounded_result.is_integer():
+                        rounded_result = int(rounded_result)
+                    st.session_state.calc_expression = str(rounded_result)
+                    
+            except Exception:
+                st.session_state.calc_expression = "Error"
 
-    def render_calc_grid(buttons, unique_prefix):
-        for r_idx, row in enumerate(buttons):
-            cols = st.columns(len(row))
-            for c_idx, char in enumerate(row):
-                with cols[c_idx]:
-                    if char == "=":
-                        st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=evaluate_calc, use_container_width=True)
-                    elif char == " " or char == "":
-                        st.write("") 
-                    else:
-                        st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=append_calc, args=(char,), use_container_width=True)
+        st.text_input(
+            label="Calculator Screen",
+            value=st.session_state.calc_expression if st.session_state.calc_expression else "0",
+            disabled=True,
+            label_visibility="collapsed"
+        )
 
-    with calc_tabs[0]:
-        render_calc_grid([
-            ["7", "8", "9", "÷"],
-            ["4", "5", "6", "×"],
-            ["1", "2", "3", "-"],
-            ["0", ".", "=", "+"]
-        ], "grid_basic")
+        ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
+        with ctrl_col1:
+            st.button("CLR", key="btn_master_clr", on_click=clear_calc, use_container_width=True)
+        with ctrl_col2:
+            st.button("DEL", key="btn_master_del", on_click=delete_last_calc, use_container_width=True)
+        with ctrl_col3:
+            st.button("(", key="btn_master_lparen", on_click=append_calc, args=("(",), use_container_width=True)
+        with ctrl_col4:
+            st.button(")", key="btn_master_rparen", on_click=append_calc, args=(")",), use_container_width=True)
 
-    with calc_tabs[1]:
-        render_calc_grid([
-            ["sin(", "cos(", "tan(", "^"],
-            ["√(", "ln(", "log(", "1/x"],
-            ["π", "e", "x", "="]
-        ], "grid_alg_trig")
+        calc_tabs = st.tabs(["🔢 Basic", "📐 Alg/Trig", "📈 Calc/Stat"])
 
-    with calc_tabs[2]:
-        render_calc_grid([
-            ["d/dx", "∫", "lim", "∑"],
-            ["μ", "σ", "x̄", "!"],
-            ["Δ", "∇", "∞", " "]
-        ], "grid_calc_stat")
+        def render_calc_grid(buttons, unique_prefix):
+            for r_idx, row in enumerate(buttons):
+                cols = st.columns(len(row))
+                for c_idx, char in enumerate(row):
+                    with cols[c_idx]:
+                        if char == "=":
+                            st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=evaluate_calc, use_container_width=True)
+                        elif char == " " or char == "":
+                            st.write("") 
+                        else:
+                            st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=append_calc, args=(char,), use_container_width=True)
+
+        with calc_tabs[0]:
+            render_calc_grid([
+                ["7", "8", "9", "÷"],
+                ["4", "5", "6", "×"],
+                ["1", "2", "3", "-"],
+                ["0", ".", "=", "+"]
+            ], "grid_basic")
+
+        with calc_tabs[1]:
+            render_calc_grid([
+                ["sin(", "cos(", "tan(", "^"],
+                ["√(", "ln(", "log(", "1/x"],
+                ["π", "e", "x", "="]
+            ], "grid_alg_trig")
+
+        with calc_tabs[2]:
+            render_calc_grid([
+                ["d/dx", "∫", "lim", "∑"],
+                ["μ", "σ", "x̄", "!"],
+                ["Δ", "∇", "∞", " "]
+            ], "grid_calc_stat")
 
     st.write("---")
     st.header(lang["ctrl_header"])
@@ -343,15 +356,6 @@ with st.sidebar:
         st.session_state.calc_expression = ""
         st.rerun()
 
-    st.write("---")
-    st.header("📖 Training Guides")
-    
-    if st.button("🎓 Student Guide", use_container_width=True):
-        st.session_state.quick_prompt = "Can you provide the Student Training Guide and explain how I can use TigerMath for my math lessons?"
-        
-    if st.button("👩‍🏫 Faculty Guide", use_container_width=True):
-        st.session_state.quick_prompt = "Can you provide the Faculty Training Guide and explain how I can use TigerMath to create lesson plans?"
-
 # =====================================
 # 5. MAIN CONTENT AREA
 # =====================================
@@ -361,7 +365,6 @@ st.caption(lang["caption"])
 # =====================================
 # 6. QUICK-LOAD PROBLEM STARTERS
 # =====================================
-
 st.markdown(lang["quick_title"])
 col1, col2, col3, col4 = st.columns(4)
 
@@ -373,7 +376,7 @@ if col4.button(lang["ql_4_btn"], use_container_width=True): st.session_state.qui
 st.write("---")
 
 # =====================================
-# 7. CAMPUS DATABASE REPOSITORY LOAD (OPTIMIZED & CACHED)
+# 7. CAMPUS DATABASE REPOSITORY LOAD
 # =====================================
 @st.cache_data(ttl=3600)
 def load_verified_campus_data():
@@ -398,7 +401,7 @@ def get_math_resources(text):
     for key, links in resource_map.items():
         if key in q:
             results.extend(links)
-    return list(set(results)) # Removes duplicates
+    return list(set(results)) 
 
 # =====================================
 # 8. PRE-LOAD TRAINING GUIDES
@@ -423,10 +426,8 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # =====================================
-# 10. INPUT & EXECUTION LAYER (WITH NATIVE HOVERING INPUT)
+# 10. INPUT & EXECUTION LAYER 
 # =====================================
-
-# Background DOM Script injection engine to safely paste values into native st.chat_input
 if st.session_state.target_symbol:
     safe_symbol = st.session_state.target_symbol.replace("'", "\\'")
     js_injector = f"""
@@ -441,9 +442,8 @@ if st.session_state.target_symbol:
     </script>
     """
     components.html(js_injector, height=0, width=0)
-    st.session_state.target_symbol = None  # Reset tracking safely
+    st.session_state.target_symbol = None  
 
-# Math symbols placed perfectly right above the sticky input area
 with st.popover("📐 Insert Math Symbols & Operations"):
     sym_tabs = st.tabs(["Algebra", "Trig", "Calc/Stats"])
     
@@ -475,13 +475,11 @@ with st.popover("📐 Insert Math Symbols & Operations"):
 
 user_query = st.chat_input(lang["chat_placeholder"])
 
-# Quick-load buttons trigger check
 if st.session_state.quick_prompt:
     user_query = st.session_state.quick_prompt
     st.session_state.quick_prompt = None
 
 if user_query:
-    # Save user message
     st.session_state.messages.append({
         "role": "user",
         "content": user_query
@@ -490,11 +488,9 @@ if user_query:
     with st.chat_message("user"):
         st.markdown(user_query)
 
-    # 🧠 PERFORMANCE OPTIMIZATION: Build Dynamic System Instruction Context Engine
     custom_style_val = st.session_state.get("custom_style", "")
     style_instruction = f"\n- PERSONALITY: {custom_style_val}." if custom_style_val else ""
     
-    # Check if the query specifically touches on Benedict College details
     campus_context = ""
     if any(kw in user_query.lower() for kw in ["benedict", "college", "campus", "bc ", "tiger", "history", "founded", "faculty"]):
         campus_context = f"""
@@ -502,6 +498,7 @@ if user_query:
 - Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
 {campus_knowledge_base}"""
 
+    # NEW: Added strict MATH FORMATTING rules for LaTeX
     SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
 
 📋 TRAINING GUIDES:
@@ -515,6 +512,7 @@ CRITICAL LANGUAGE REQUIREMENT:
 {campus_context}
 
 📐 MATHEMATICS DIRECTIVES:
+- MATH FORMATTING: You MUST use standard LaTeX formatting for all numbers, equations, fractions, limits, and powers. Wrap inline math in single dollar signs ($) and standalone equations in double dollar signs ($$). Never output raw math text like x^2, 3/4, or lim x->0.
 - WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!" (or a warm equivalent), and ask what they want to tackle next. Do NOT serve up an unprompted mathematical problem or transition to another question automatically. Stop immediately and let the user decide.
 - TONAL SENSITIVITY & EMBEDDED EMPATHY: NEVER use phrases like "easy", "simple", "easy peasy", "piece of cake", "basic", or imply a problem is trivial. Treat every math question with complete professional respect, validation, and encouragement. Never minimize the difficulty of any equation or concept.
 - WHEN THE USER IS STUCK/LEARNING: NEVER give the final solution upfront. Guide them to discover it. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
@@ -522,7 +520,6 @@ CRITICAL LANGUAGE REQUIREMENT:
 - Keep responses highly interactive and conversational. Never write long blocks of text.
 """
 
-    # Build conversation context arrays
     formatted_messages = [
         {"role": "system", "content": SYSTEM_INSTRUCTION}
     ]
@@ -534,7 +531,6 @@ CRITICAL LANGUAGE REQUIREMENT:
         full_response = ""
         seen_urls = set()
 
-        # 🧠 Step 1: Scan user query for instant reference links
         user_resources = get_math_resources(user_query)
         if user_resources:
             full_response += "📚 **Quick References:**\n"
@@ -553,14 +549,12 @@ CRITICAL LANGUAGE REQUIREMENT:
                 stream=True
             )
 
-            # 🤖 Step 2: Stream the AI's optimized guidance
             for chunk in response_stream:
                 content = getattr(chunk.choices[0].delta, "content", None)
                 if content:
                     full_response += content
                     response_placeholder.markdown(full_response + "▌")
 
-            # 🧠 Step 3: Scan what the AI said and append new links
             ai_resources = get_math_resources(full_response)
             new_resources = [res for res in ai_resources if res[1] not in seen_urls]
 
@@ -569,10 +563,8 @@ CRITICAL LANGUAGE REQUIREMENT:
                 for title, url in new_resources:
                     full_response += f"• [{title}]({url})\n"
 
-            # Final static render
             response_placeholder.markdown(full_response)
 
-            # Save the comprehensive response to session state
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": full_response
