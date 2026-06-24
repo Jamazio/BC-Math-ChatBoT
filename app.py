@@ -438,8 +438,8 @@ CRITICAL LANGUAGE REQUIREMENT:
 {campus_knowledge_base}
 
 📐 MATHEMATICS DIRECTIVES:
-- NEVER give the user the final solution upfront. Guide them to discover it.
-- Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
+- WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!", and ask what they want to tackle next. Do NOT drag out simple questions or keep probing once the correct answer is given.
+- WHEN THE USER IS STUCK/LEARNING: NEVER give the final solution upfront. Guide them to discover it. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
 - If they make an error, point out the breakdown in logic gently.
 - Keep responses highly interactive and conversational. Never write long blocks of text.
 """
@@ -536,48 +536,4 @@ if user_query:
         user_resources = get_math_resources(user_query)
         if user_resources:
             full_response += "📚 **Quick References:**\n"
-            for title, url in user_resources:
-                full_response += f"• [{title}]({url})\n"
-                seen_urls.add(url)
-            full_response += "\n---\n\n"
-
-        try:
-            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-
-            response_stream = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=formatted_messages,
-                temperature=0.6,
-                stream=True
-            )
-
-            # 🤖 Step 2: Stream the AI's Socratic guidance
-            for chunk in response_stream:
-                content = getattr(chunk.choices[0].delta, "content", None)
-                if content:
-                    full_response += content
-                    response_placeholder.markdown(full_response + "▌")
-
-            # 🧠 Step 3: Scan what the AI said and append new links
-            ai_resources = get_math_resources(full_response)
-            # Filter out links that were already added during Step 1
-            new_resources = [res for res in ai_resources if res[1] not in seen_urls]
-
-            if new_resources:
-                # Append a footer section to the response
-                full_response += "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
-                for title, url in new_resources:
-                    full_response += f"• [{title}]({url})\n"
-
-            # Final static render of everything combined
-            response_placeholder.markdown(full_response)
-
-            # Save the comprehensive response to session state
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": full_response
-            })
-
-        except Exception as e:
-            st.error(lang["error_msg"])
-            st.info(str(e))
+            for title, url in user_resources
