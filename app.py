@@ -52,7 +52,11 @@ UI_TEXT = {
         "reset_btn": "Reset Conversation",
         "chat_placeholder": "Hi there! What math problem can I help you with today? 🐅",
         "sys_prompt": "You MUST respond ONLY in English.",
-        "error_msg": "Authentication or API Error. Please check your system configuration."
+        "error_msg": "Authentication or API Error. Please check your system configuration.",
+        "explore_header": "Explore Math Topics & Formulas",
+        "select_area": "Select Math Area",
+        "select_topic": "Select Topic",
+        "explain_btn": "Explain"
     },
     "Español": {
         "caption": "Tu Especialista Matemático BC | Creado por Mark Wells y Jamazio Mcphee",
@@ -62,7 +66,11 @@ UI_TEXT = {
         "reset_btn": "Reiniciar Conversación",
         "chat_placeholder": "¡Hola! ¿Con qué problema de matemáticas te puedo ayudar hoy? 🐅",
         "sys_prompt": "Debes responder ÚNICAMENTE en español.",
-        "error_msg": "Error de API o autenticación. Verifica la configuración de tu sistema."
+        "error_msg": "Error de API o autenticación. Verifica la configuración de tu sistema.",
+        "explore_header": "Explorar Temas y Fórmulas",
+        "select_area": "Seleccionar Área",
+        "select_topic": "Seleccionar Tema",
+        "explain_btn": "Explicar"
     },
     "Français": {
         "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
@@ -72,7 +80,11 @@ UI_TEXT = {
         "reset_btn": "Réinitialiser la Conversation",
         "chat_placeholder": "Bonjour ! Avec quel problème de mathématiques puis-je vous aider aujourd'hui ? 🐅",
         "sys_prompt": "Vous devez répondre UNIQUEMENT en français.",
-        "error_msg": "Erreur d'authentification ou d'API. Veuillez vérifier votre configuration."
+        "error_msg": "Erreur d'authentification ou d'API. Veuillez vérifier votre configuration.",
+        "explore_header": "Explorer les Sujets et Formules",
+        "select_area": "Sélectionner le Domaine",
+        "select_topic": "Sélectionner le Sujet",
+        "explain_btn": "Expliquer"
     },
     "Deutsch": {
         "caption": "Ihr BC Mathematik-Spezialist | Erstellt von Mark Wells und Jamazio Mcphee",
@@ -82,12 +94,26 @@ UI_TEXT = {
         "reset_btn": "Konversation zurücksetzen",
         "chat_placeholder": "Hallo! Bei welchem Mathematikproblem kann ich heute helfen? 🐅",
         "sys_prompt": "Du musst AUSSCHLIESSLICH auf Deutsch antworten.",
-        "error_msg": "Authentifizierungs- oder API-Fehler. Bitte überprüfe deine Systemkonfiguration."
+        "error_msg": "Authentifizierungs- oder API-Fehler. Bitte überprüfe deine Systemkonfiguration.",
+        "explore_header": "Mathe-Themen & Formeln Erkunden",
+        "select_area": "Bereich Auswählen",
+        "select_topic": "Thema Auswählen",
+        "explain_btn": "Erklären"
     }
 }
 
 # =====================================
-# 3. INITIALIZE SESSION STATE VARIABLES
+# 3. MATH TOPICS REPOSITORY
+# =====================================
+MATH_TOPICS = {
+    "Algebra": ["Quadratic Formula", "Slope-Intercept Form", "Properties of Exponents", "Logarithm Rules", "Systems of Equations"],
+    "Trigonometry": ["Pythagorean Identities", "Law of Sines", "Law of Cosines", "Unit Circle Basics"],
+    "Calculus": ["Limits Overview", "Power Rule (Derivatives)", "Product & Quotient Rules", "Integration by Parts", "Fundamental Theorem of Calculus"],
+    "Statistics": ["Mean, Median, Mode", "Normal Distribution & Z-Scores", "Standard Deviation", "Bayes' Theorem"]
+}
+
+# =====================================
+# 4. INITIALIZE SESSION STATE VARIABLES
 # =====================================
 if "language" not in st.session_state:
     st.session_state.language = "English"
@@ -108,7 +134,7 @@ def send_symbol_to_state(symbol):
     st.session_state.target_symbol = symbol
 
 # =====================================
-# 4. SIDEBAR CONFIGURATION
+# 5. SIDEBAR CONFIGURATION
 # =====================================
 with st.sidebar:
     # --- Training Guides ---
@@ -147,14 +173,14 @@ with st.sidebar:
         st.rerun()
 
 # =====================================
-# 5. MAIN CONTENT AREA
+# 6. MAIN CONTENT AREA
 # =====================================
 st.title("🐅 BC TigerMath AI")
 st.caption(lang["caption"])
 st.write("---")
 
 # =====================================
-# 6. CAMPUS DATABASE REPOSITORY LOAD
+# 7. CAMPUS DATABASE REPOSITORY LOAD
 # =====================================
 @st.cache_data(ttl=3600)
 def load_verified_campus_data():
@@ -182,7 +208,7 @@ def get_math_resources(text):
     return list(set(results)) 
 
 # =====================================
-# 7. PRE-LOAD TRAINING GUIDES
+# 8. PRE-LOAD TRAINING GUIDES
 # =====================================
 try:
     with open("student_guides.txt", "r", encoding="utf-8") as f:
@@ -197,14 +223,31 @@ except:
     faculty_training_guide = "No faculty guide file found."
 
 # =====================================
-# 8. RENDER EXISTING CHAT HISTORY
+# 9. RENDER EXISTING CHAT HISTORY
 # =====================================
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # =====================================
-# 9. INPUT & EXECUTION LAYER 
+# 10. INTERACTIVE TOPIC EXPLORER
+# =====================================
+with st.expander(f"📚 {lang['explore_header']}", expanded=False):
+    t_col1, t_col2 = st.columns(2)
+    with t_col1:
+        selected_area = st.selectbox(lang["select_area"], list(MATH_TOPICS.keys()))
+    with t_col2:
+        selected_topic = st.selectbox(lang["select_topic"], MATH_TOPICS[selected_area])
+        
+    if st.button(f"{lang['explain_btn']} {selected_topic}", use_container_width=True):
+        st.session_state.messages.append({
+            "role": "user",
+            "content": f"Can you give me the core formula and a brief conceptual explanation of how to approach: {selected_topic}?"
+        })
+        st.rerun()
+
+# =====================================
+# 11. INPUT & EXECUTION LAYER 
 # =====================================
 if st.session_state.target_symbol:
     safe_symbol = st.session_state.target_symbol.replace("'", "\\'")
@@ -290,6 +333,7 @@ CRITICAL LANGUAGE REQUIREMENT:
 
 📐 MATHEMATICS DIRECTIVES:
 - MATH FORMATTING: You MUST use standard LaTeX formatting for all numbers, equations, fractions, limits, and powers. Wrap inline math in single dollar signs ($) and standalone equations in double dollar signs ($$). Never output raw math text like x^2, 3/4, or lim x->0.
+- EXPLAINING FORMULAS: If the user specifically asks for a formula and explanation, provide the formula clearly in LaTeX block format ($$), followed by a concise, step-by-step conceptual breakdown of how it works.
 - WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!" (or a warm equivalent), and ask what they want to tackle next. Do NOT serve up an unprompted mathematical problem or transition to another question automatically. Stop immediately and let the user decide.
 - TONAL SENSITIVITY & EMBEDDED EMPATHY: NEVER use phrases like "easy", "simple", "easy peasy", "piece of cake", "basic", or imply a problem is trivial. Treat every math question with complete professional respect, validation, and encouragement. Never minimize the difficulty of any equation or concept.
 - WHEN THE USER IS STUCK/LEARNING: NEVER give the final solution upfront. Guide them to discover it. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
@@ -336,7 +380,6 @@ CRITICAL LANGUAGE REQUIREMENT:
                         response_placeholder.markdown(full_response + "▌")
                         time.sleep(0.003)
                     
-                    # FIXED: Wrapped inside placeholder context with proper width and height keys
                     with scroll_placeholder:
                         components.html("""
                             <script>
