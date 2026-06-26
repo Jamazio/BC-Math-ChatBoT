@@ -1,6 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
+import time
 
 # =====================================
 # 1. PAGE SETUP & CONFIG
@@ -49,15 +50,6 @@ UI_TEXT = {
         "ctrl_header": "Control Panel",
         "ctrl_info": "The BC Math Specialist is authenticated and ready to assist!",
         "reset_btn": "Reset Conversation",
-        "quick_title": "**Quick-Load Problem Starters:**",
-        "ql_1_btn": "➕ Algebra Setup",
-        "ql_1_msg": "How do I solve a quadratic equation like x² - 5x + 6 = 0?",
-        "ql_2_btn": "📐 Pre-Calc Help",
-        "ql_2_msg": "Can you help me find the exact value of sin(π/3)?",
-        "ql_3_btn": "📈 Calculus Rules",
-        "ql_3_msg": "I need help finding the derivative of f(x) = x² * e^x.",
-        "ql_4_btn": "📊 Stats & Data",
-        "ql_4_msg": "How do I calculate the standard deviation or z-score of a dataset?",
         "chat_placeholder": "Hi there! What math problem can I help you with today? 🐅",
         "sys_prompt": "You MUST respond ONLY in English.",
         "error_msg": "Authentication or API Error. Please check your system configuration."
@@ -68,15 +60,6 @@ UI_TEXT = {
         "ctrl_header": "Panel de Control",
         "ctrl_info": "¡El Especialista Matemático BC está listo para ayudar!",
         "reset_btn": "Reiniciar Conversación",
-        "quick_title": "**Iniciadores de Problemas Rápidos:**",
-        "ql_1_btn": "➕ Álgebra",
-        "ql_1_msg": "¿Cómo resuelvo una ecuación cuadrática como x² - 5x + 6 = 0?",
-        "ql_2_btn": "📐 Pre-Cálculo",
-        "ql_2_msg": "¿Puedes ayudarme a encontrar el valor exacto de sin(π/3)?",
-        "ql_3_btn": "📈 Cálculo",
-        "ql_3_msg": "Necesito ayuda para encontrar la derivada de f(x) = x² * e^x.",
-        "ql_4_btn": "📊 Estadística",
-        "ql_4_msg": "¿Cómo calculo la desviación estándar o el valor z de un conjunto de datos?",
         "chat_placeholder": "¡Hola! ¿Con qué problema de matemáticas te puedo ayudar hoy? 🐅",
         "sys_prompt": "Debes responder ÚNICAMENTE en español.",
         "error_msg": "Error de API o autenticación. Verifica la configuración de tu sistema."
@@ -87,15 +70,6 @@ UI_TEXT = {
         "ctrl_header": "Panneau de Configuration",
         "ctrl_info": "Le spécialiste mathématique BC est prêt à vous aider !",
         "reset_btn": "Réinitialiser la Conversation",
-        "quick_title": "**Démarreurs Rapides de Problèmes :**",
-        "ql_1_btn": "➕ Algèbre",
-        "ql_1_msg": "Comment résoudre une équation quadratique comme x² - 5x + 6 = 0 ?",
-        "ql_2_btn": "📐 Pré-Calcul",
-        "ql_2_msg": "Pouvez-vous m'aidez à trouver la valeur exacte de sin(π/3) ?",
-        "ql_3_btn": "📈 Calcul",
-        "ql_3_msg": "J'ai besoin d'aide pour trouver la dérivée de f(x) = x² * e^x.",
-        "ql_4_btn": "📊 Statistiques",
-        "ql_4_msg": "Comment calculer l'écart type ou le score z d'un ensemble de données ?",
         "chat_placeholder": "Bonjour ! Avec quel problème de mathématiques puis-je vous aider aujourd'hui ? 🐅",
         "sys_prompt": "Vous devez répondre UNIQUEMENT en français.",
         "error_msg": "Erreur d'authentification ou d'API. Veuillez vérifier votre configuration."
@@ -106,15 +80,6 @@ UI_TEXT = {
         "ctrl_header": "Kontrollzentrum",
         "ctrl_info": "Der BC Mathematik-Spezialist ist authentifiziert und bereit zu helfen!",
         "reset_btn": "Konversation zurücksetzen",
-        "quick_title": "**Schnellstart für Mathematikprobleme:**",
-        "ql_1_btn": "➕ Algebra",
-        "ql_1_msg": "Wie löse ich eine quadratische Gleichung wie x² - 5x + 6 = 0?",
-        "ql_2_btn": "📐 Vorkalkül",
-        "ql_2_msg": "Kannst du mir helfen, den exakten Wert von sin(π/3) zu finden?",
-        "ql_3_btn": "📈 Analysis",
-        "ql_3_msg": "Ich brauche Hilfe bei der Ableitung von f(x) = x² * e^x.",
-        "ql_4_btn": "📊 Statistik",
-        "ql_4_msg": "Wie bereche ich die Standardabweichung oder den Z-Wert eines Datensatzes?",
         "chat_placeholder": "Hallo! Bei welchem Mathematikproblem kann ich heute helfen? 🐅",
         "sys_prompt": "Du musst AUSSCHLIESSLICH auf Deutsch antworten.",
         "error_msg": "Authentifizierungs- oder API-Fehler. Bitte überprüfe deine Systemkonfiguration."
@@ -128,8 +93,6 @@ if "language" not in st.session_state:
     st.session_state.language = "English"
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "quick_prompt" not in st.session_state:
-    st.session_state.quick_prompt = None
 if "shown_resources" not in st.session_state:
     st.session_state.shown_resources = set()
 if "custom_style" not in st.session_state:
@@ -152,10 +115,12 @@ with st.sidebar:
     st.header("📖 Training Guides")
     
     if st.button("🎓 Student Guide", use_container_width=True):
-        st.session_state.quick_prompt = "Can you provide the Student Training Guide and explain how I can use TigerMath for my math lessons?"
+        st.session_state.messages.append({"role": "user", "content": "Can you provide the Student Training Guide and explain how I can use TigerMath for my math lessons?"})
+        st.rerun()
         
     if st.button("👩‍🏫 Faculty Guide", use_container_width=True):
-        st.session_state.quick_prompt = "Can you provide the Faculty Training Guide and explain how I can use TigerMath to create lesson plans?"
+        st.session_state.messages.append({"role": "user", "content": "Can you provide the Faculty Training Guide and explain how I can use TigerMath to create lesson plans?"})
+        st.rerun()
 
     st.write("---")
 
@@ -186,22 +151,10 @@ with st.sidebar:
 # =====================================
 st.title("🐅 BC TigerMath AI")
 st.caption(lang["caption"])
-
-# =====================================
-# 6. QUICK-LOAD PROBLEM STARTERS
-# =====================================
-st.markdown(lang["quick_title"])
-col1, col2, col3, col4 = st.columns(4)
-
-if col1.button(lang["ql_1_btn"], use_container_width=True): st.session_state.quick_prompt = lang["ql_1_msg"]
-if col2.button(lang["ql_2_btn"], use_container_width=True): st.session_state.quick_prompt = lang["ql_2_msg"]
-if col3.button(lang["ql_3_btn"], use_container_width=True): st.session_state.quick_prompt = lang["ql_3_msg"]
-if col4.button(lang["ql_4_btn"], use_container_width=True): st.session_state.quick_prompt = lang["ql_4_msg"]
-
 st.write("---")
 
 # =====================================
-# 7. CAMPUS DATABASE REPOSITORY LOAD
+# 6. CAMPUS DATABASE REPOSITORY LOAD
 # =====================================
 @st.cache_data(ttl=3600)
 def load_verified_campus_data():
@@ -229,7 +182,7 @@ def get_math_resources(text):
     return list(set(results)) 
 
 # =====================================
-# 8. PRE-LOAD TRAINING GUIDES
+# 7. PRE-LOAD TRAINING GUIDES
 # =====================================
 try:
     with open("student_guides.txt", "r", encoding="utf-8") as f:
@@ -244,14 +197,14 @@ except:
     faculty_training_guide = "No faculty guide file found."
 
 # =====================================
-# 9. RENDER EXISTING CHAT HISTORY
+# 8. RENDER EXISTING CHAT HISTORY
 # =====================================
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # =====================================
-# 10. INPUT & EXECUTION LAYER 
+# 9. INPUT & EXECUTION LAYER 
 # =====================================
 if st.session_state.target_symbol:
     safe_symbol = st.session_state.target_symbol.replace("'", "\\'")
@@ -300,19 +253,19 @@ with st.popover("📐 Insert Math Symbols & Operations"):
 
 user_query = st.chat_input(lang["chat_placeholder"])
 
-if st.session_state.quick_prompt:
-    user_query = st.session_state.quick_prompt
-    st.session_state.quick_prompt = None
-
-if user_query:
-    st.session_state.messages.append({
-        "role": "user",
-        "content": user_query
-    })
-
+# If there are messages in history and the last one is from a user, we execute the AI response block
+if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] == "user":
+    user_query = st.session_state.messages[-1]["content"]
+    execute_ai = True
+elif user_query:
+    st.session_state.messages.append({"role": "user", "content": user_query})
     with st.chat_message("user"):
         st.markdown(user_query)
+    execute_ai = True
+else:
+    execute_ai = False
 
+if execute_ai:
     custom_style_val = st.session_state.get("custom_style", "")
     style_instruction = f"\n- PERSONALITY: {custom_style_val}." if custom_style_val else ""
     
@@ -348,21 +301,22 @@ CRITICAL LANGUAGE REQUIREMENT:
         {"role": "system", "content": SYSTEM_INSTRUCTION}
     ]
     for msg in st.session_state.messages:
-        formatted_messages.append({"role": msg["role"], "content": msg["content"]})
+        if msg["role"] == "user" or (msg["role"] == "assistant" and not msg["content"].startswith("📚 **Quick References:**")):
+            formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
     with st.chat_message("assistant"):
+        response_placeholder = st.empty()
+        scroll_placeholder = st.empty()
+        full_response = ""
         seen_urls = set()
+
         user_resources = get_math_resources(user_query)
-        prefix_text = ""
-        
-        # Display quick resources immediately if applicable
         if user_resources:
-            prefix_text += "📚 **Quick References:**\n"
+            full_response += "📚 **Quick References:**\n"
             for title, url in user_resources:
-                prefix_text += f"• [{title}]({url})\n"
+                full_response += f"• [{title}]({url})\n"
                 seen_urls.add(url)
-            prefix_text += "\n---\n\n"
-            st.markdown(prefix_text)
+            full_response += "\n---\n\n"
 
         try:
             client = Groq(api_key=st.secrets["GROQ_API_KEY"])
@@ -374,29 +328,35 @@ CRITICAL LANGUAGE REQUIREMENT:
                 stream=True
             )
 
-            # Generator to yield chunks for Streamlit's native typing effect
-            def stream_generator():
-                for chunk in response_stream:
-                    content = getattr(chunk.choices[0].delta, "content", None)
-                    if content:
-                        yield content
+            # Iterates text with micro-delays to generate an authentic typewriter animation
+            for chunk in response_stream:
+                content = getattr(chunk.choices[0].delta, "content", None)
+                if content:
+                    for char in content:
+                        full_response += char
+                        response_placeholder.markdown(full_response + "▌")
+                        time.sleep(0.003)
+                    
+                    # Invisible frame to push the main page container down dynamically
+                    scroll_placeholder.html("""
+                        <script>
+                            var mainDoc = window.parent.document.querySelector('section.main');
+                            if (mainDoc) { mainDoc.scrollTo(0, mainDoc.scrollHeight); }
+                        </script>
+                    """, height=0, width=0)
 
-            # st.write_stream automatically handles the typing cursor and auto-scrolling
-            generated_text = st.write_stream(stream_generator())
-            full_response = prefix_text + generated_text
-
-            # Append new resources based on the AI's generated response
-            ai_resources = get_math_resources(generated_text)
+            ai_resources = get_math_resources(full_response)
             new_resources = [res for res in ai_resources if res[1] not in seen_urls]
 
             if new_resources:
-                suffix_text = "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
+                full_response += "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
                 for title, url in new_resources:
-                    suffix_text += f"• [{title}]({url})\n"
-                st.markdown(suffix_text)
-                full_response += suffix_text
+                    full_response += f"• [{title}]({url})\n"
 
-            # Save the complete response to chat history
+            # Final clean render without the blinking cursor element
+            response_placeholder.markdown(full_response)
+            scroll_placeholder.empty()
+
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": full_response
