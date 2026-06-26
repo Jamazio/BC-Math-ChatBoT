@@ -1,8 +1,6 @@
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
-import math
-import re
 
 # =====================================
 # 1. PAGE SETUP & CONFIG
@@ -24,35 +22,6 @@ st.markdown("""
     .stCaption { 
         color: #F0F2F6 !important; 
         font-style: italic; 
-    }
-
-    /* Custom Design for the Calculator & Symbol Grid Buttons */
-    div.stButton > button {
-        background-color: #4C145E !important;
-        color: #FFD700 !important;
-        border: 2px solid #FFD700 !important;
-        border-radius: 8px;
-        font-weight: bold;
-        font-size: 14px;
-        height: 40px;
-        transition: all 0.3s ease;
-        padding: 0px !important;
-    }
-    div.stButton > button:hover {
-        background-color: #FFD700 !important;
-        color: #4C145E !important;
-        border: 2px solid #4C145E !important;
-    }
-
-    /* Calculator Display Window Screen */
-    input:disabled {
-        background-color: #262730 !important;
-        color: #FFD700 !important;
-        font-family: 'Courier New', Courier, monospace !important;
-        font-size: 18px !important;
-        font-weight: bold !important;
-        text-align: right !important;
-        opacity: 1 !important;
     }
 
     /* Accent lines and styling wrappers */
@@ -77,8 +46,6 @@ UI_TEXT = {
     "English": {
         "caption": "Your Campus BC Math Specialist | Created by Mark Wells and Jamazio Mcphee",
         "lang_prompt": "🌍 Select Your Language",
-        "calc_header": "🧮 Advanced Calculator",
-        "calc_caption": "Compute math across all levels directly from your sidebar!",
         "ctrl_header": "Control Panel",
         "ctrl_info": "The BC Math Specialist is authenticated and ready to assist!",
         "reset_btn": "Reset Conversation",
@@ -98,8 +65,6 @@ UI_TEXT = {
     "Español": {
         "caption": "Tu Especialista Matemático BC | Creado por Mark Wells y Jamazio Mcphee",
         "lang_prompt": "🌍 Selecciona tu idioma",
-        "calc_header": "🧮 Calculadora Avanzada",
-        "calc_caption": "¡Realiza cálculos de todos los niveles desde la barra lateral!",
         "ctrl_header": "Panel de Control",
         "ctrl_info": "¡El Especialista Matemático BC está listo para ayudar!",
         "reset_btn": "Reiniciar Conversación",
@@ -119,8 +84,6 @@ UI_TEXT = {
     "Français": {
         "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
         "lang_prompt": "🌍 Choisissez votre langue",
-        "calc_header": "🧮 Calculatrice Avancée",
-        "calc_caption": "Calculez des expressions de tous niveaux depuis la barra latérale !",
         "ctrl_header": "Panneau de Configuration",
         "ctrl_info": "Le spécialiste mathématique BC est prêt à vous aider !",
         "reset_btn": "Réinitialiser la Conversation",
@@ -140,8 +103,6 @@ UI_TEXT = {
     "Deutsch": {
         "caption": "Ihr BC Mathematik-Spezialist | Erstellt von Mark Wells und Jamazio Mcphee",
         "lang_prompt": "🌍 Sprache auswählen",
-        "calc_header": "🧮 Erweiterter Rechner",
-        "calc_caption": "Berechnen Sie mathematische Probleme aller Stufen in der Seitenleiste!",
         "ctrl_header": "Kontrollzentrum",
         "ctrl_info": "Der BC Mathematik-Spezialist ist authentifiziert und bereit zu helfen!",
         "reset_btn": "Konversation zurücksetzen",
@@ -167,8 +128,6 @@ if "language" not in st.session_state:
     st.session_state.language = "English"
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "calc_expression" not in st.session_state:
-    st.session_state.calc_expression = ""
 if "quick_prompt" not in st.session_state:
     st.session_state.quick_prompt = None
 if "shown_resources" not in st.session_state:
@@ -189,7 +148,7 @@ def send_symbol_to_state(symbol):
 # 4. SIDEBAR CONFIGURATION
 # =====================================
 with st.sidebar:
-    # --- MOVED TO TOP: Training Guides ---
+    # --- Training Guides ---
     st.header("📖 Training Guides")
     
     if st.button("🎓 Student Guide", use_container_width=True):
@@ -214,146 +173,12 @@ with st.sidebar:
         )
 
     st.write("---")
-
-    # --- COLLAPSIBLE: Advanced Calculator ---
-    with st.expander(lang["calc_header"], expanded=True):
-        st.caption(lang["calc_caption"])
-
-        # Core Calculator Callbacks
-        def append_calc(char):
-            if st.session_state.calc_expression in ["Error", "0"]:
-                st.session_state.calc_expression = ""
-            if char == "1/x":
-                st.session_state.calc_expression += "1/("
-            else:
-                st.session_state.calc_expression += str(char)
-
-        def clear_calc():
-            st.session_state.calc_expression = ""
-
-        def delete_last_calc():
-            if st.session_state.calc_expression in ["Error", "0"]:
-                st.session_state.calc_expression = ""
-            else:
-                st.session_state.calc_expression = st.session_state.calc_expression[:-1]
-
-        def evaluate_calc():
-            try:
-                expr = st.session_state.calc_expression
-                if not expr:
-                    return
-
-                # Clean up basic operators
-                expr = expr.replace("×", "*").replace("÷", "/")
-                expr = expr.replace("π", "pi").replace("e", "e")
-                expr = expr.replace("√(", "sqrt(")
-
-                # Handle implicit multiplication (e.g., "5pi" -> "5*pi")
-                expr = re.sub(r'(\d|pi|e)\s*([a-zA-Z\(])', r'\1*\2', expr)
-                expr = re.sub(r'([\)])\s*([0-9a-zA-Z\(])', r'\1*\2', expr)
-                expr = expr.replace("^", "**")
-                
-                # Handle factorials (Converts "5!" to "factorial(5)" and "(3+2)!" to "factorial((3+2))")
-                expr = re.sub(r'(\d+(?:\.\d+)?)!', r'factorial(\1)', expr)
-                expr = re.sub(r'(\([^()]+\))!', r'factorial(\1)', expr)
-
-                # Auto-close hanging brackets
-                open_brackets = expr.count("(")
-                close_brackets = expr.count(")")
-                if open_brackets > close_brackets:
-                    expr += ")" * (open_brackets - close_brackets)
-
-                # HELPER: Snaps extremely tiny floating point errors (like sin(pi)) exactly to 0
-                def snap(val):
-                    return 0.0 if abs(val) < 1e-10 else val
-
-                # Allowed math environment
-                allowed_env = {
-                    "sin": lambda x: snap(math.sin(x)),
-                    "cos": lambda x: snap(math.cos(x)),
-                    "tan": lambda x: snap(math.tan(x)),
-                    "sqrt": math.sqrt,
-                    "ln": math.log,
-                    "log": math.log10,
-                    "pi": math.pi,
-                    "e": math.e,
-                    "factorial": math.factorial,
-                    "__builtins__": None
-                }
-                
-                raw_result = eval(expr, allowed_env, {})
-                
-                # Format the output so it looks clean on the UI
-                if isinstance(raw_result, (int, float)):
-                    rounded_result = round(raw_result, 10)
-                    if isinstance(rounded_result, float) and rounded_result.is_integer():
-                        rounded_result = int(rounded_result)
-                    st.session_state.calc_expression = str(rounded_result)
-                    
-            except Exception:
-                st.session_state.calc_expression = "Error"
-
-        st.text_input(
-            label="Calculator Screen",
-            value=st.session_state.calc_expression if st.session_state.calc_expression else "0",
-            disabled=True,
-            label_visibility="collapsed"
-        )
-
-        ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns(4)
-        with ctrl_col1:
-            st.button("CLR", key="btn_master_clr", on_click=clear_calc, use_container_width=True)
-        with ctrl_col2:
-            st.button("DEL", key="btn_master_del", on_click=delete_last_calc, use_container_width=True)
-        with ctrl_col3:
-            st.button("(", key="btn_master_lparen", on_click=append_calc, args=("(",), use_container_width=True)
-        with ctrl_col4:
-            st.button(")", key="btn_master_rparen", on_click=append_calc, args=(")",), use_container_width=True)
-
-        calc_tabs = st.tabs(["🔢 Basic", "📐 Alg/Trig", "📈 Calc/Stat"])
-
-        def render_calc_grid(buttons, unique_prefix):
-            for r_idx, row in enumerate(buttons):
-                cols = st.columns(len(row))
-                for c_idx, char in enumerate(row):
-                    with cols[c_idx]:
-                        if char == "=":
-                            st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=evaluate_calc, use_container_width=True)
-                        elif char == " " or char == "":
-                            st.write("") 
-                        else:
-                            st.button(char, key=f"{unique_prefix}_{r_idx}_{c_idx}", on_click=append_calc, args=(char,), use_container_width=True)
-
-        with calc_tabs[0]:
-            render_calc_grid([
-                ["7", "8", "9", "÷"],
-                ["4", "5", "6", "×"],
-                ["1", "2", "3", "-"],
-                ["0", ".", "=", "+"]
-            ], "grid_basic")
-
-        with calc_tabs[1]:
-            render_calc_grid([
-                ["sin(", "cos(", "tan(", "^"],
-                ["√(", "ln(", "log(", "1/x"],
-                ["π", "e", "x", "="]
-            ], "grid_alg_trig")
-
-        with calc_tabs[2]:
-            render_calc_grid([
-                ["d/dx", "∫", "lim", "∑"],
-                ["μ", "σ", "x̄", "!"],
-                ["Δ", "∇", "∞", " "]
-            ], "grid_calc_stat")
-
-    st.write("---")
     st.header(lang["ctrl_header"])
     st.info(lang["ctrl_info"])
 
     if st.button(lang["reset_btn"], use_container_width=True):
         st.session_state.messages = []
         st.session_state.shown_resources = set()
-        st.session_state.calc_expression = ""
         st.rerun()
 
 # =====================================
@@ -498,7 +323,6 @@ if user_query:
 - Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
 {campus_knowledge_base}"""
 
-    # NEW: Added strict MATH FORMATTING rules for LaTeX
     SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
 
 📋 TRAINING GUIDES:
@@ -527,17 +351,18 @@ CRITICAL LANGUAGE REQUIREMENT:
         formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
     with st.chat_message("assistant"):
-        response_placeholder = st.empty()
-        full_response = ""
         seen_urls = set()
-
         user_resources = get_math_resources(user_query)
+        prefix_text = ""
+        
+        # Display quick resources immediately if applicable
         if user_resources:
-            full_response += "📚 **Quick References:**\n"
+            prefix_text += "📚 **Quick References:**\n"
             for title, url in user_resources:
-                full_response += f"• [{title}]({url})\n"
+                prefix_text += f"• [{title}]({url})\n"
                 seen_urls.add(url)
-            full_response += "\n---\n\n"
+            prefix_text += "\n---\n\n"
+            st.markdown(prefix_text)
 
         try:
             client = Groq(api_key=st.secrets["GROQ_API_KEY"])
@@ -549,22 +374,29 @@ CRITICAL LANGUAGE REQUIREMENT:
                 stream=True
             )
 
-            for chunk in response_stream:
-                content = getattr(chunk.choices[0].delta, "content", None)
-                if content:
-                    full_response += content
-                    response_placeholder.markdown(full_response + "▌")
+            # Generator to yield chunks for Streamlit's native typing effect
+            def stream_generator():
+                for chunk in response_stream:
+                    content = getattr(chunk.choices[0].delta, "content", None)
+                    if content:
+                        yield content
 
-            ai_resources = get_math_resources(full_response)
+            # st.write_stream automatically handles the typing cursor and auto-scrolling
+            generated_text = st.write_stream(stream_generator())
+            full_response = prefix_text + generated_text
+
+            # Append new resources based on the AI's generated response
+            ai_resources = get_math_resources(generated_text)
             new_resources = [res for res in ai_resources if res[1] not in seen_urls]
 
             if new_resources:
-                full_response += "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
+                suffix_text = "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
                 for title, url in new_resources:
-                    full_response += f"• [{title}]({url})\n"
+                    suffix_text += f"• [{title}]({url})\n"
+                st.markdown(suffix_text)
+                full_response += suffix_text
 
-            response_placeholder.markdown(full_response)
-
+            # Save the complete response to chat history
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": full_response
