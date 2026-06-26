@@ -126,7 +126,7 @@ if "custom_style" not in st.session_state:
 if "target_symbol" not in st.session_state:
     st.session_state.target_symbol = None
 
-# --- NEW: Walkthrough State Trackers ---
+# --- Walkthrough State Trackers ---
 if "is_in_walkthrough" not in st.session_state:
     st.session_state.is_in_walkthrough = False
 if "walkthrough_step" not in st.session_state:
@@ -145,7 +145,7 @@ def send_symbol_to_state(symbol):
 with st.sidebar:
     st.header("📖 Training Guides")
     
-    # --- UPDATED: Walkthrough Triggers ---
+    # --- Walkthrough Triggers ---
     if st.button("🎓 Student Guide Walkthrough", use_container_width=True):
         st.session_state.is_in_walkthrough = True
         st.session_state.walkthrough_step = 1
@@ -307,7 +307,7 @@ if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] 
     user_query = st.session_state.messages[-1]["content"]
     execute_ai = True
 elif user_query:
-    # --- NEW: Walkthrough progression logic ---
+    # --- Walkthrough progression logic ---
     if st.session_state.is_in_walkthrough:
         if any(word in user_query.lower() for word in ["stop", "exit", "cancel", "done", "math"]):
             st.session_state.is_in_walkthrough = False
@@ -332,16 +332,21 @@ if execute_ai:
 - Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
 {campus_knowledge_base}"""
 
-    # --- NEW: Inject hidden context so the LLM knows it's doing a walkthrough ---
+    # --- NEW: Inject STRICT hidden context so the LLM knows it's doing a walkthrough ---
     walkthrough_directive = ""
     if st.session_state.is_in_walkthrough:
         walkthrough_directive = f"""
-🔴 WALKTHROUGH MODE ACTIVE:
-You are currently guiding the user through the {st.session_state.active_guide}. They are on Slide {st.session_state.walkthrough_step}.
-- Break the document into logical sections (Slide 1, Slide 2, etc.).
-- ONLY provide the content for Slide {st.session_state.walkthrough_step}. Do NOT output the entire document.
-- Keep the slide concise and formatted cleanly with headers.
-- End your response by asking the user to type "Next" when they are ready to proceed.
+🔴 STRICT WALKTHROUGH MODE ACTIVE:
+Current Guide: {st.session_state.active_guide}
+Current Position: Part {st.session_state.walkthrough_step}
+
+CRITICAL RULES FOR OUTPUT:
+1. The training guide provided contains several numbered points. 
+2. You MUST ONLY output the text for Point #{st.session_state.walkthrough_step}. 
+3. If this is Part 1, output ONLY the Introduction and Point 1.
+4. ABSOLUTELY DO NOT output Point 2, Point 3, or Point 4. Do not summarize the whole guide.
+5. Your response should be incredibly short (no more than 3-4 sentences).
+6. Always end your response with EXACTLY this phrase: "👉 **Type 'Next' to continue.**"
 """
 
     SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
@@ -371,13 +376,16 @@ CRITICAL LANGUAGE REQUIREMENT:
     formatted_messages = [
         {"role": "system", "content": SYSTEM_INSTRUCTION}
     ]
+    
     for msg in st.session_state.messages:
         if msg["role"] == "user" or (msg["role"] == "assistant" and not msg["content"].startswith("📚 **Quick References:**")):
             formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # --- INJECTING HIDDEN PROMPT FOR WALKTHROUGH CONTINUATION ---
-    if st.session_state.is_in_walkthrough and "next" in user_query.lower():
-        formatted_messages[-1]["content"] += f"\n\n[SYSTEM NOTE: The user has requested the next slide. Please output Slide {st.session_state.walkthrough_step} of the {st.session_state.active_guide}.]"
+    # --- UPDATED: AGGRESSIVE HIDDEN PROMPT FOR WALKTHROUGH CONTINUATION ---
+    if st.session_state.is_in_walkthrough:
+        # We overwrite the final user message behind the scenes to force the AI's hand
+        if "next" in user_query.lower() or st.session_state.walkthrough_step == 1:
+            formatted_messages[-1]["content"] = f"We are on Part {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Give me ONLY point #{st.session_state.walkthrough_step} and nothing else."
 
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
