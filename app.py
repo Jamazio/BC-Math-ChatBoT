@@ -213,19 +213,19 @@ def get_math_resources(text):
     return list(set(results)) 
 
 # =====================================
-# 8. PRE-LOAD TRAINING GUIDES
+# 8. PRE-LOAD TRAINING GUIDES (FIXED PLURAL FILENAMES)
 # =====================================
 try:
     with open("student_guides.txt", "r", encoding="utf-8") as f:
         student_training_guide = f.read()
 except:
-    student_training_guide = "No student guide file found."
+    student_training_guide = "No student guides file found."
 
 try:
     with open("faculty_guides.txt", "r", encoding="utf-8") as f:
         faculty_training_guide = f.read()
 except:
-    faculty_training_guide = "No faculty guide file found."
+    faculty_training_guide = "No faculty guides file found."
 
 # =====================================
 # 9. RENDER EXISTING CHAT HISTORY
@@ -333,7 +333,7 @@ if execute_ai:
 - Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
 {campus_knowledge_base}"""
 
-    # --- UPDATED: 6-Slide Structure mapped directly inside the system instruction layout ---
+    # --- Walkthrough Structure mapped directly inside the system instruction layout ---
     walkthrough_directive = ""
     if st.session_state.is_in_walkthrough:
         walkthrough_directive = f"""
@@ -352,7 +352,8 @@ CRITICAL RULES FOR OUTPUT:
    - Slide 6: LANGUAGE & STYLE SETTINGS. Explain how users can access the sidebar configuration expander module to instantly translate the UI engine to alternative frameworks (Español, Français, Deutsch) or type custom personas into the open prompt field.
 
 3. Keep the output short and highly readable (3-4 sentences max per slide).
-4. If this is Slide 6, congratulate the user on wrapping up the layout tour. Otherwise, you MUST always append exactly: "👉 **Type 'Next' to continue.**"
+4. You MUST ALWAYS append this exact phrase at the end of your response if it is slides 1 through 5: "👉 **Type 'Next' to continue.**"
+5. If this is Slide 6, congratulate them on finishing the full walkthrough. Do not add the 'Next' command.
 """
 
     SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
@@ -387,13 +388,13 @@ CRITICAL LANGUAGE REQUIREMENT:
         if msg["role"] == "user" or (msg["role"] == "assistant" and not msg["content"].startswith("📚 **Quick References:**")):
             formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # --- AGGRESSIVE INTERCEPT FOR SYSTEM FEATURES (SLIDES 5 & 6) ---
+    # --- AGGRESSIVE INTERCEPT FOR WALKTHROUGH CONTINUATION ---
     if st.session_state.is_in_walkthrough:
         if "next" in user_query.lower() or st.session_state.walkthrough_step == 1:
             if st.session_state.walkthrough_step <= 4:
-                formatted_messages[-1]["content"] = f"We are on Slide {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Provide ONLY text corresponding to step #{st.session_state.walkthrough_step}."
+                formatted_messages[-1]["content"] = f"We are on Slide {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Provide ONLY text corresponding to step #{st.session_state.walkthrough_step}. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
             elif st.session_state.walkthrough_step == 5:
-                formatted_messages[-1]["content"] = "Generate Slide 5: Explain the 'Explore Math Topics & Formulas' dropdown tool on the dashboard screen."
+                formatted_messages[-1]["content"] = "Generate Slide 5: Explain the 'Explore Math Topics & Formulas' dropdown tool on the dashboard screen. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
             elif st.session_state.walkthrough_step == 6:
                 formatted_messages[-1]["content"] = "Generate Slide 6: Explain how to change UI dialects or write custom styling tags under 'Language & Style Settings' in the sidebar."
 
@@ -417,7 +418,7 @@ CRITICAL LANGUAGE REQUIREMENT:
             response_stream = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=formatted_messages,
-                temperature=0.6,
+                temperature=0.4, # Lowered temperature slightly for strict structural instruction adherence
                 stream=True
             )
 
