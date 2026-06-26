@@ -245,7 +245,6 @@ with st.expander(f"📚 {lang['explore_header']}", expanded=False):
         selected_topic = st.selectbox(lang["select_topic"], MATH_TOPICS[selected_area])
         
     if st.button(f"{lang['explain_btn']} {selected_topic}", use_container_width=True):
-        # Auto-cancel walkthrough if they jump to a math topic
         st.session_state.is_in_walkthrough = False 
         st.session_state.messages.append({
             "role": "user",
@@ -313,6 +312,8 @@ elif user_query:
             st.session_state.is_in_walkthrough = False
         elif any(word in user_query.lower() for word in ["next", "continue", "yes", "ready"]):
             st.session_state.walkthrough_step += 1
+            if st.session_state.walkthrough_step > 6:
+                st.session_state.is_in_walkthrough = False
     
     st.session_state.messages.append({"role": "user", "content": user_query})
     with st.chat_message("user"):
@@ -332,21 +333,26 @@ if execute_ai:
 - Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
 {campus_knowledge_base}"""
 
-    # --- NEW: Inject STRICT hidden context so the LLM knows it's doing a walkthrough ---
+    # --- UPDATED: 6-Slide Structure mapped directly inside the system instruction layout ---
     walkthrough_directive = ""
     if st.session_state.is_in_walkthrough:
         walkthrough_directive = f"""
 🔴 STRICT WALKTHROUGH MODE ACTIVE:
 Current Guide: {st.session_state.active_guide}
-Current Position: Part {st.session_state.walkthrough_step}
+Current Position: Slide {st.session_state.walkthrough_step} of 6
 
 CRITICAL RULES FOR OUTPUT:
-1. The training guide provided contains several numbered points. 
-2. You MUST ONLY output the text for Point #{st.session_state.walkthrough_step}. 
-3. If this is Part 1, output ONLY the Introduction and Point 1.
-4. ABSOLUTELY DO NOT output Point 2, Point 3, or Point 4. Do not summarize the whole guide.
-5. Your response should be incredibly short (no more than 3-4 sentences).
-6. Always end your response with EXACTLY this phrase: "👉 **Type 'Next' to continue.**"
+1. You MUST ONLY output the content specific to Slide {st.session_state.walkthrough_step}. Do not summarize or view ahead.
+2. Structure your breakdown precisely according to the matching index below:
+   - Slide 1: Introduction and Point 1 (How to ask questions & Use symbols).
+   - Slide 2: Point 2 (Using the Calculator / Control Panel).
+   - Slide 3: Point 3 (Getting Unstuck & Micro-rules).
+   - Slide 4: Point 4 (Learning Paths & Study Resource URL lookups).
+   - Slide 5: EXPLORE MATH TOPICS & FORMULAS. Explain the drop-down accordion menu widget on the main application panel. Detail how students can select primary subjects (Algebra, Trig, Calculus, Statistics), pick specific subtopics, and hit 'Explain' to immediately review rules.
+   - Slide 6: LANGUAGE & STYLE SETTINGS. Explain how users can access the sidebar configuration expander module to instantly translate the UI engine to alternative frameworks (Español, Français, Deutsch) or type custom personas into the open prompt field.
+
+3. Keep the output short and highly readable (3-4 sentences max per slide).
+4. If this is Slide 6, congratulate the user on wrapping up the layout tour. Otherwise, you MUST always append exactly: "👉 **Type 'Next' to continue.**"
 """
 
     SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
@@ -381,11 +387,15 @@ CRITICAL LANGUAGE REQUIREMENT:
         if msg["role"] == "user" or (msg["role"] == "assistant" and not msg["content"].startswith("📚 **Quick References:**")):
             formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # --- UPDATED: AGGRESSIVE HIDDEN PROMPT FOR WALKTHROUGH CONTINUATION ---
+    # --- AGGRESSIVE INTERCEPT FOR SYSTEM FEATURES (SLIDES 5 & 6) ---
     if st.session_state.is_in_walkthrough:
-        # We overwrite the final user message behind the scenes to force the AI's hand
         if "next" in user_query.lower() or st.session_state.walkthrough_step == 1:
-            formatted_messages[-1]["content"] = f"We are on Part {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Give me ONLY point #{st.session_state.walkthrough_step} and nothing else."
+            if st.session_state.walkthrough_step <= 4:
+                formatted_messages[-1]["content"] = f"We are on Slide {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Provide ONLY text corresponding to step #{st.session_state.walkthrough_step}."
+            elif st.session_state.walkthrough_step == 5:
+                formatted_messages[-1]["content"] = "Generate Slide 5: Explain the 'Explore Math Topics & Formulas' dropdown tool on the dashboard screen."
+            elif st.session_state.walkthrough_step == 6:
+                formatted_messages[-1]["content"] = "Generate Slide 6: Explain how to change UI dialects or write custom styling tags under 'Language & Style Settings' in the sidebar."
 
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
