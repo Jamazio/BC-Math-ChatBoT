@@ -14,3 +14,9 @@ TigerMath is your Socratic math partner. It will not just give you the answer; i
 
 4. LEARNING PATH:
    - The AI will provide links to study guides (external sources) when you discuss specific topics. Use these to reinforce your lesson plans!
+
+5. EXPLORE MATH TOPICS & FORMULAS:
+   - Expand the dropdown tool on your main dashboard to browse direct rules across Algebra, Trig, Calculus, and Statistics. Select a subtopic and click 'Explain' to immediately review the core formulas.
+
+6. LANGUAGE & STYLE SETTINGS:
+   - Open the sidebar configuration expander module to instantly translate the user interface (into Español, Français, or Deutsch) or input a custom persona/style for your AI tutor.
