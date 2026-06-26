@@ -14,4 +14,9 @@ Use TigerMath to streamline your curriculum development:
 
 4. TEACHING STRATEGY:
    Ask: "What are some common misconceptions students have about [Topic], and how can I address them in class?"
-   
+
+5. EXPLORE MATH TOPICS & FORMULAS:
+   - Use the interactive main dashboard module to quickly reference core department guidelines or review foundational formulas across Algebra, Trig, Calculus, and Statistics during lecture prep.
+
+6. LANGUAGE & STYLE SETTINGS:
+   - Use the sidebar parameters to translate your workspace into different languages or test custom persona rules to align the AI's instructional tone with your class curriculum.
