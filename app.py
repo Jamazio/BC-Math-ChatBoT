@@ -253,7 +253,7 @@ with st.popover("📐 Insert Math Symbols & Operations"):
 
 user_query = st.chat_input(lang["chat_placeholder"])
 
-# If there are messages in history and the last one is from a user, we execute the AI response block
+# Check chat execution paths
 if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] == "user":
     user_query = st.session_state.messages[-1]["content"]
     execute_ai = True
@@ -328,7 +328,6 @@ CRITICAL LANGUAGE REQUIREMENT:
                 stream=True
             )
 
-            # Iterates text with micro-delays to generate an authentic typewriter animation
             for chunk in response_stream:
                 content = getattr(chunk.choices[0].delta, "content", None)
                 if content:
@@ -337,13 +336,14 @@ CRITICAL LANGUAGE REQUIREMENT:
                         response_placeholder.markdown(full_response + "▌")
                         time.sleep(0.003)
                     
-                    # Invisible frame to push the main page container down dynamically
-                    scroll_placeholder.html("""
-                        <script>
-                            var mainDoc = window.parent.document.querySelector('section.main');
-                            if (mainDoc) { mainDoc.scrollTo(0, mainDoc.scrollHeight); }
-                        </script>
-                    """, height=0, width=0)
+                    # FIXED: Wrapped inside placeholder context with proper width and height keys
+                    with scroll_placeholder:
+                        components.html("""
+                            <script>
+                                var mainDoc = window.parent.document.querySelector('section.main');
+                                if (mainDoc) { mainDoc.scrollTo(0, mainDoc.scrollHeight); }
+                            </script>
+                        """, height=0, width=0)
 
             ai_resources = get_math_resources(full_response)
             new_resources = [res for res in ai_resources if res[1] not in seen_urls]
@@ -353,7 +353,6 @@ CRITICAL LANGUAGE REQUIREMENT:
                 for title, url in new_resources:
                     full_response += f"• [{title}]({url})\n"
 
-            # Final clean render without the blinking cursor element
             response_placeholder.markdown(full_response)
             scroll_placeholder.empty()
 
