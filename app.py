@@ -199,24 +199,41 @@ with st.sidebar:
         st.radio("Choose Language", list(UI_TEXT.keys()), key="language")
         st.text_input("🎭 Custom Persona / Style:", placeholder="e.g., Southern style, surfer slang...", key="custom_style")
 
-    # --- Feedback Survey Integration ---
+    # --- NEW: Feedback Survey Integration (Forms & Multiple Questions) ---
     st.write("---")
     st.header("📝 Leave Feedback")
     questions = load_survey_questions()
+    
     if questions:
-        first_q = questions[0]
-        
-        if isinstance(first_q, str):
-            q_text = first_q
-            q_id = "q1"
-        else:
-            q_text = first_q.get("question", "Rate this bot")
-            q_id = first_q.get("id", "q1")
-            
-        rating = st.slider(q_text, 1, 5)
-        if st.button("Submit Feedback", use_container_width=True):
-            save_feedback(student_id="Student_01", question_id=q_id, response=rating)
-            st.success("Feedback saved to CSV! Thank you.")
+        with st.form("feedback_form"):
+            responses = {}
+            for i, q in enumerate(questions):
+                # Safeguard: if the JSON is still a string list, guess the type
+                if isinstance(q, str):
+                    q_text = q
+                    q_id = f"q{i+1}"
+                    if "scale" in q_text.lower() or "confident" in q_text.lower():
+                        responses[q_id] = st.slider(q_text, 1, 5, key=q_id)
+                    else:
+                        responses[q_id] = st.text_area(q_text, key=q_id)
+                
+                # If the JSON is using the updated dictionaries (Correct way)
+                else:
+                    q_text = q.get("question", "Feedback Question")
+                    q_id = q.get("id", f"q{i+1}")
+                    q_type = q.get("type", "text")
+                    
+                    if q_type == "scale":
+                        responses[q_id] = st.slider(q_text, 1, 5, key=q_id)
+                    else:
+                        responses[q_id] = st.text_area(q_text, key=q_id)
+                        
+            # Form submit button
+            submitted = st.form_submit_button("Submit Feedback", use_container_width=True)
+            if submitted:
+                for q_id, resp in responses.items():
+                    save_feedback(student_id="Student_01", question_id=q_id, response=resp)
+                st.success("Feedback saved to CSV! Thank you.")
 
     st.write("---")
     st.header(lang["ctrl_header"])
