@@ -213,7 +213,7 @@ def get_math_resources(text):
     return list(set(results)) 
 
 # =====================================
-# 8. PRE-LOAD TRAINING GUIDES (FIXED PLURAL FILENAMES)
+# 8. PRE-LOAD TRAINING GUIDES
 # =====================================
 try:
     with open("student_guides.txt", "r", encoding="utf-8") as f:
@@ -235,7 +235,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # =====================================
-# 10. INTERACTIVE TOPIC EXPLORER
+# 10. INTERACTIVE TOPIC EXPLORER (UPDATED USER COMMAND)
 # =====================================
 with st.expander(f"📚 {lang['explore_header']}", expanded=False):
     t_col1, t_col2 = st.columns(2)
@@ -248,7 +248,7 @@ with st.expander(f"📚 {lang['explore_header']}", expanded=False):
         st.session_state.is_in_walkthrough = False 
         st.session_state.messages.append({
             "role": "user",
-            "content": f"Can you give me the core formula and a brief conceptual explanation of how to approach: {selected_topic}?"
+            "content": f"I want to learn about {selected_topic}. Break it down and walk me through it step-by-step. What is the first piece I need to know?"
         })
         st.rerun()
 
@@ -356,6 +356,7 @@ CRITICAL RULES FOR OUTPUT:
 5. If this is Slide 6, congratulate them on finishing the full walkthrough. Do not add the 'Next' command.
 """
 
+    # --- 📐 FIXED MATH DIRECTIVES INSIDE SYSTEM PROMPT FOR SOCRATIC ONLY INTERACTION ---
     SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
 
 📋 TRAINING GUIDES:
@@ -368,11 +369,13 @@ CRITICAL LANGUAGE REQUIREMENT:
 {walkthrough_directive}
 
 📐 MATHEMATICS DIRECTIVES:
+- ABSOLUTE BAN ON DUMPING COMPLETE ANSWERS: You are strictly forbidden from outputting whole recipes, multi-step execution steps, or long summary paragraphs at once when explaining topics or equations. No matter what the user prompts, you must cut your knowledge into single breadcrumbs.
+- THE ONE-PIECE SOCRATIC RULE: State exactly ONE basic definition, one single initial coefficient checkpoint, or one lone step of a formula at a time. Conclude EVERY response with exactly ONE target question that requires the user to give input or find the next piece. Let the student drive the engine piece-by-piece.
 - CRITICAL MATH FORMATTING: Streamlit's math parser will break if you format math poorly. You MUST adhere to these exact rules:
   1. ALWAYS put display equations ($$) on their own separate lines, surrounded by blank lines. 
   2. NEVER put regular conversational text inside a LaTeX block.
   3. ALWAYS ensure block environments like \\begin{{aligned}} have a matching \\end{{aligned}}. Do not output partial or broken LaTeX.
-- EXPLAINING FORMULAS: When the user asks for a formula, introduce it briefly, skip a line, write the formula cleanly in ($$) block format, skip another line, and then provide your conceptual breakdown. 
+- EXPLAINING FORMULAS: When asked about a complex formula (like the Quadratic Formula), display the formula cleanly on its own line using ($$) block formatting, state what its primary purpose is in one simple sentence, and immediately ask a question about its components or fields to prompt the next interactive step. Do not print out the full setup checklist or solution guide.
 - WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!" (or a warm equivalent), and ask what they want to tackle next. Do NOT serve up an unprompted mathematical problem or transition to another question automatically. Stop immediately and let the user decide.
 - TONAL SENSITIVITY & EMBEDDED EMPATHY: NEVER use phrases like "easy", "simple", "easy peasy", "piece of cake", "basic", or imply a problem is trivial. Treat every math question with complete professional respect, validation, and encouragement. Never minimize the difficulty of any equation or concept.
 - WHEN THE USER IS STUCK/LEARNING: NEVER give the final solution upfront. Guide them to discover it. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
@@ -388,7 +391,7 @@ CRITICAL LANGUAGE REQUIREMENT:
         if msg["role"] == "user" or (msg["role"] == "assistant" and not msg["content"].startswith("📚 **Quick References:**")):
             formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # --- AGGRESSIVE INTERCEPT FOR WALKTHROUGH CONTINUATION ---
+    # --- WALKTHROUGH INTERCEPT INTERACTION LAYER ---
     if st.session_state.is_in_walkthrough:
         if "next" in user_query.lower() or st.session_state.walkthrough_step == 1:
             if st.session_state.walkthrough_step <= 4:
@@ -418,7 +421,7 @@ CRITICAL LANGUAGE REQUIREMENT:
             response_stream = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=formatted_messages,
-                temperature=0.4, # Lowered temperature slightly for strict structural instruction adherence
+                temperature=0.3, # Dropped slightly for extra rigorous rule adherence
                 stream=True
             )
 
