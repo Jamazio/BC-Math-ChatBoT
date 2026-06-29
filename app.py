@@ -2,9 +2,44 @@ import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
 import time
+import json
+import csv
+import os
+from datetime import datetime
 
 # =====================================
-# 1. PAGE SETUP & CONFIG
+# 1. CORE DATA FUNCTIONS (Survey, CSV, OneDrive)
+# =====================================
+def load_survey_questions(filepath='survey_questions.json'):
+    try:
+        with open(filepath, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return []
+
+def save_feedback(student_id, question_id, response, filepath='student_feedback.csv'):
+    file_exists = os.path.isfile(filepath)
+    with open(filepath, 'a', newline='') as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(['Timestamp', 'StudentID', 'QuestionID', 'Response'])
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        writer.writerow([timestamp, student_id, question_id, response])
+
+def log_communication(user_input, bot_response):
+    onedrive_dir = r"C:\Users\Jamazio Mcphee\OneDrive - Benedict College"
+    log_file_path = os.path.join(onedrive_dir, "math_bot_chat_logs.txt")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"[{timestamp}]\nUser: {user_input}\nBot: {bot_response}\n---\n"
+    
+    try:
+        with open(log_file_path, 'a') as file:
+            file.write(log_entry)
+    except Exception as e:
+        print(f"Failed to write to OneDrive: {e}")
+
+# =====================================
+# 2. PAGE SETUP & CONFIG
 # =====================================
 st.set_page_config(
     page_title="BC TigerMath AI", 
@@ -12,7 +47,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 🎨 Custom CSS Injection: BC Purple & Tiger Gold Theme ---
+# --- Custom CSS Injection: BC Purple & Tiger Gold Theme ---
 st.markdown("""
     <style>
     /* Title and Subtitle Styling */
@@ -41,7 +76,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =====================================
-# 2. MULTI-LANGUAGE UI DICTIONARY
+# 3. MULTI-LANGUAGE UI DICTIONARY
 # =====================================
 UI_TEXT = {
     "English": {
@@ -103,7 +138,7 @@ UI_TEXT = {
 }
 
 # =====================================
-# 3. MATH TOPICS REPOSITORY
+# 4. MATH TOPICS REPOSITORY
 # =====================================
 MATH_TOPICS = {
     "Algebra": ["Quadratic Formula", "Slope-Intercept Form", "Properties of Exponents", "Logarithm Rules", "Systems of Equations"],
@@ -113,7 +148,7 @@ MATH_TOPICS = {
 }
 
 # =====================================
-# 4. INITIALIZE SESSION STATE VARIABLES
+# 5. INITIALIZE SESSION STATE VARIABLES
 # =====================================
 if "language" not in st.session_state:
     st.session_state.language = "English"
@@ -125,8 +160,6 @@ if "custom_style" not in st.session_state:
     st.session_state.custom_style = ""
 if "target_symbol" not in st.session_state:
     st.session_state.target_symbol = None
-
-# --- Walkthrough State Trackers ---
 if "is_in_walkthrough" not in st.session_state:
     st.session_state.is_in_walkthrough = False
 if "walkthrough_step" not in st.session_state:
@@ -140,7 +173,7 @@ def send_symbol_to_state(symbol):
     st.session_state.target_symbol = symbol
 
 # =====================================
-# 5. SIDEBAR CONFIGURATION
+# 6. SIDEBAR CONFIGURATION
 # =====================================
 with st.sidebar:
     st.header("📖 Training Guides")
@@ -166,6 +199,17 @@ with st.sidebar:
         st.radio("Choose Language", list(UI_TEXT.keys()), key="language")
         st.text_input("🎭 Custom Persona / Style:", placeholder="e.g., Southern style, surfer slang...", key="custom_style")
 
+    # --- NEW: Feedback Survey Integration ---
+    st.write("---")
+    st.header("📝 Leave Feedback")
+    questions = load_survey_questions()
+    if questions:
+        first_q = questions[0]
+        rating = st.slider(first_q.get("question", "Rate this bot"), 1, 5)
+        if st.button("Submit Feedback", use_container_width=True):
+            save_feedback(student_id="Student_01", question_id=first_q.get("id"), response=rating)
+            st.success("Feedback saved to CSV! Thank you.")
+
     st.write("---")
     st.header(lang["ctrl_header"])
     st.info(lang["ctrl_info"])
@@ -178,14 +222,14 @@ with st.sidebar:
         st.rerun()
 
 # =====================================
-# 6. MAIN CONTENT AREA
+# 7. MAIN CONTENT AREA
 # =====================================
 st.title("🐅 BC TigerMath AI")
 st.caption(lang["caption"])
 st.write("---")
 
 # =====================================
-# 7. CAMPUS DATABASE REPOSITORY LOAD
+# 8. CAMPUS DATABASE REPOSITORY LOAD
 # =====================================
 @st.cache_data(ttl=3600)
 def load_verified_campus_data():
@@ -213,7 +257,7 @@ def get_math_resources(text):
     return list(set(results)) 
 
 # =====================================
-# 8. PRE-LOAD TRAINING GUIDES
+# 9. PRE-LOAD TRAINING GUIDES
 # =====================================
 try:
     with open("student_guides.txt", "r", encoding="utf-8") as f:
@@ -228,14 +272,14 @@ except:
     faculty_training_guide = "No faculty guides file found."
 
 # =====================================
-# 9. RENDER EXISTING CHAT HISTORY
+# 10. RENDER EXISTING CHAT HISTORY
 # =====================================
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # =====================================
-# 10. INTERACTIVE TOPIC EXPLORER (UPDATED USER COMMAND)
+# 11. INTERACTIVE TOPIC EXPLORER
 # =====================================
 with st.expander(f"📚 {lang['explore_header']}", expanded=False):
     t_col1, t_col2 = st.columns(2)
@@ -248,12 +292,12 @@ with st.expander(f"📚 {lang['explore_header']}", expanded=False):
         st.session_state.is_in_walkthrough = False 
         st.session_state.messages.append({
             "role": "user",
-            "content": f"I want to learn about {selected_topic}. Break it down and walk me through it step-by-step. What is the first piece I need to know?"
+            "content": f"Can you give me the core formula and a brief conceptual explanation of how to approach: {selected_topic}?"
         })
         st.rerun()
 
 # =====================================
-# 11. INPUT & EXECUTION LAYER 
+# 12. INPUT & EXECUTION LAYER 
 # =====================================
 if st.session_state.target_symbol:
     safe_symbol = st.session_state.target_symbol.replace("'", "\\'")
@@ -306,7 +350,6 @@ if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] 
     user_query = st.session_state.messages[-1]["content"]
     execute_ai = True
 elif user_query:
-    # --- Walkthrough progression logic ---
     if st.session_state.is_in_walkthrough:
         if any(word in user_query.lower() for word in ["stop", "exit", "cancel", "done", "math"]):
             st.session_state.is_in_walkthrough = False
@@ -333,7 +376,6 @@ if execute_ai:
 - Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
 {campus_knowledge_base}"""
 
-    # --- Walkthrough Structure mapped directly inside the system instruction layout ---
     walkthrough_directive = ""
     if st.session_state.is_in_walkthrough:
         walkthrough_directive = f"""
@@ -356,7 +398,6 @@ CRITICAL RULES FOR OUTPUT:
 5. If this is Slide 6, congratulate them on finishing the full walkthrough. Do not add the 'Next' command.
 """
 
-    # --- 📐 FIXED MATH DIRECTIVES INSIDE SYSTEM PROMPT FOR SOCRATIC ONLY INTERACTION ---
     SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
 
 📋 TRAINING GUIDES:
@@ -369,13 +410,11 @@ CRITICAL LANGUAGE REQUIREMENT:
 {walkthrough_directive}
 
 📐 MATHEMATICS DIRECTIVES:
-- ABSOLUTE BAN ON DUMPING COMPLETE ANSWERS: You are strictly forbidden from outputting whole recipes, multi-step execution steps, or long summary paragraphs at once when explaining topics or equations. No matter what the user prompts, you must cut your knowledge into single breadcrumbs.
-- THE ONE-PIECE SOCRATIC RULE: State exactly ONE basic definition, one single initial coefficient checkpoint, or one lone step of a formula at a time. Conclude EVERY response with exactly ONE target question that requires the user to give input or find the next piece. Let the student drive the engine piece-by-piece.
 - CRITICAL MATH FORMATTING: Streamlit's math parser will break if you format math poorly. You MUST adhere to these exact rules:
   1. ALWAYS put display equations ($$) on their own separate lines, surrounded by blank lines. 
   2. NEVER put regular conversational text inside a LaTeX block.
   3. ALWAYS ensure block environments like \\begin{{aligned}} have a matching \\end{{aligned}}. Do not output partial or broken LaTeX.
-- EXPLAINING FORMULAS: When asked about a complex formula (like the Quadratic Formula), display the formula cleanly on its own line using ($$) block formatting, state what its primary purpose is in one simple sentence, and immediately ask a question about its components or fields to prompt the next interactive step. Do not print out the full setup checklist or solution guide.
+- EXPLAINING FORMULAS: When the user asks for a formula, introduce it briefly, skip a line, write the formula cleanly in ($$) block format, skip another line, and then provide your conceptual breakdown. 
 - WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!" (or a warm equivalent), and ask what they want to tackle next. Do NOT serve up an unprompted mathematical problem or transition to another question automatically. Stop immediately and let the user decide.
 - TONAL SENSITIVITY & EMBEDDED EMPATHY: NEVER use phrases like "easy", "simple", "easy peasy", "piece of cake", "basic", or imply a problem is trivial. Treat every math question with complete professional respect, validation, and encouragement. Never minimize the difficulty of any equation or concept.
 - WHEN THE USER IS STUCK/LEARNING: NEVER give the final solution upfront. Guide them to discover it. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
@@ -391,7 +430,6 @@ CRITICAL LANGUAGE REQUIREMENT:
         if msg["role"] == "user" or (msg["role"] == "assistant" and not msg["content"].startswith("📚 **Quick References:**")):
             formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # --- WALKTHROUGH INTERCEPT INTERACTION LAYER ---
     if st.session_state.is_in_walkthrough:
         if "next" in user_query.lower() or st.session_state.walkthrough_step == 1:
             if st.session_state.walkthrough_step <= 4:
@@ -421,7 +459,7 @@ CRITICAL LANGUAGE REQUIREMENT:
             response_stream = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=formatted_messages,
-                temperature=0.3, # Dropped slightly for extra rigorous rule adherence
+                temperature=0.4,
                 stream=True
             )
 
@@ -456,6 +494,9 @@ CRITICAL LANGUAGE REQUIREMENT:
                 "role": "assistant",
                 "content": full_response
             })
+            
+            # --- NEW: Log to OneDrive after successful response ---
+            log_communication(user_query, full_response)
 
         except Exception as e:
             st.error(lang["error_msg"])
