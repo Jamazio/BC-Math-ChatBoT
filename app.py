@@ -205,9 +205,18 @@ with st.sidebar:
     questions = load_survey_questions()
     if questions:
         first_q = questions[0]
-        rating = st.slider(first_q.get("question", "Rate this bot"), 1, 5)
+        
+        # SAFEGUARD: Handles the data whether it's a string or a dictionary
+        if isinstance(first_q, str):
+            q_text = first_q
+            q_id = "q1"
+        else:
+            q_text = first_q.get("question", "Rate this bot")
+            q_id = first_q.get("id", "q1")
+            
+        rating = st.slider(q_text, 1, 5)
         if st.button("Submit Feedback", use_container_width=True):
-            save_feedback(student_id="Student_01", question_id=first_q.get("id"), response=rating)
+            save_feedback(student_id="Student_01", question_id=q_id, response=rating)
             st.success("Feedback saved to CSV! Thank you.")
 
     st.write("---")
