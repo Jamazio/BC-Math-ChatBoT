@@ -199,14 +199,13 @@ with st.sidebar:
         st.radio("Choose Language", list(UI_TEXT.keys()), key="language")
         st.text_input("🎭 Custom Persona / Style:", placeholder="e.g., Southern style, surfer slang...", key="custom_style")
 
-    # --- NEW: Feedback Survey Integration ---
+    # --- Feedback Survey Integration ---
     st.write("---")
     st.header("📝 Leave Feedback")
     questions = load_survey_questions()
     if questions:
         first_q = questions[0]
         
-        # SAFEGUARD: Handles the data whether it's a string or a dictionary
         if isinstance(first_q, str):
             q_text = first_q
             q_id = "q1"
@@ -409,6 +408,12 @@ CRITICAL RULES FOR OUTPUT:
 
     SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
 
+🚨 CRITICAL GUARDRAIL: ABSOLUTE SOCRATIC METHOD
+- NEVER GIVE AWAY THE FINAL ANSWER OR A FULL STEP-BY-STEP SOLUTION UPFRONT.
+- If a user provides a math problem (e.g., "what is 8 plus 4 times 6"), DO NOT compute the final answer, do not write out the complete equation breakdown, and do not show all the arithmetic steps in your response. 
+- Instead, you must identify the very first step internally, and then ask ONE target question or give ONE small hint to guide the user to perform that step themselves. (e.g., "To get started, let's look at our operations here. According to PEMDAS, should we handle the addition or the multiplication first?").
+- Your responses must be brief, interactive, and conversational. Never write out full answers or complete the math for the student.
+
 📋 TRAINING GUIDES:
 STUDENT GUIDE: {student_training_guide}
 FACULTY GUIDE: {faculty_training_guide}
@@ -426,9 +431,7 @@ CRITICAL LANGUAGE REQUIREMENT:
 - EXPLAINING FORMULAS: When the user asks for a formula, introduce it briefly, skip a line, write the formula cleanly in ($$) block format, skip another line, and then provide your conceptual breakdown. 
 - WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!" (or a warm equivalent), and ask what they want to tackle next. Do NOT serve up an unprompted mathematical problem or transition to another question automatically. Stop immediately and let the user decide.
 - TONAL SENSITIVITY & EMBEDDED EMPATHY: NEVER use phrases like "easy", "simple", "easy peasy", "piece of cake", "basic", or imply a problem is trivial. Treat every math question with complete professional respect, validation, and encouragement. Never minimize the difficulty of any equation or concept.
-- WHEN THE USER IS STUCK/LEARNING: NEVER give the final solution upfront. Guide them to discover it. Identify the next mathematical step internally, but only provide ONE small hint or ask ONE target question.
 - If they make an error, point out the breakdown in logic gently.
-- Keep responses highly interactive and conversational. Never write long blocks of text.
 """
 
     formatted_messages = [
@@ -504,7 +507,7 @@ CRITICAL LANGUAGE REQUIREMENT:
                 "content": full_response
             })
             
-            # --- NEW: Log to OneDrive after successful response ---
+            # --- Log to OneDrive after successful response ---
             log_communication(user_query, full_response)
 
         except Exception as e:
