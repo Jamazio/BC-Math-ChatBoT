@@ -9,14 +9,11 @@ Use TigerMath to streamline your curriculum development:
    - "Give me a 'Level 1' hint for a student struggling with basic arithmetic in this derivative problem."
    - "Give me a 'Level 3' hint that challenges a student to think about the conceptual rule."
 
-3. ASSESSMENT CREATION: 
-   Ask: "Generate 5 practice problems on [Topic] and provide an answer key with step-by-step explanations."
+3. ASSESSMENTS & STRATEGY: 
+   Ask: "Generate 5 practice problems on [Topic] and provide an answer key with step-by-step explanations." Or ask: "What are some common misconceptions students have about [Topic], and how can I address them in class?"
 
-4. TEACHING STRATEGY:
-   Ask: "What are some common misconceptions students have about [Topic], and how can I address them in class?"
-
-5. EXPLORE MATH TOPICS & FORMULAS:
+4. EXPLORE MATH TOPICS & FORMULAS:
    - Use the interactive main dashboard module to quickly reference core department guidelines or review foundational formulas across Algebra, Trig, Calculus, and Statistics during lecture prep.
 
-6. LANGUAGE & STYLE SETTINGS:
+5. LANGUAGE & STYLE SETTINGS:
    - Use the sidebar parameters to translate your workspace into different languages or test custom persona rules to align the AI's instructional tone with your class curriculum.
