@@ -5,18 +5,15 @@ TigerMath is your Socratic math partner. It will not just give you the answer; i
    - Be specific about your math topic (e.g., "How do I factor this quadratic?").
    - Use the 'Insert Math Symbols' popover to add complex notation like integrals, limits, or exponents to your chat input.
 
-2. USING THE CALCULATOR:
-   - Use the sidebar calculator for quick numerical checks before asking the AI to explain the logic.
-
-3. GETTING UNSTUCK:
+2. GETTING UNSTUCK:
    - If you are lost, tell the AI: "I am completely stuck." It will provide a micro-explanation of the rule.
    - Use the 'Quick-Load' buttons for common algebra, calculus, or stats problems to see examples of how to format your questions.
 
-4. LEARNING PATH:
+3. LEARNING PATH:
    - The AI will provide links to study guides (external sources) when you discuss specific topics. Use these to reinforce your lesson plans!
 
-5. EXPLORE MATH TOPICS & FORMULAS:
+4. EXPLORE MATH TOPICS & FORMULAS:
    - Expand the dropdown tool on your main dashboard to browse direct rules across Algebra, Trig, Calculus, and Statistics. Select a subtopic and click 'Explain' to immediately review the core formulas.
 
-6. LANGUAGE & STYLE SETTINGS:
+5. LANGUAGE & STYLE SETTINGS:
    - Open the sidebar configuration expander module to instantly translate the user interface (into Español, Français, or Deutsch) or input a custom persona/style for your AI tutor.
