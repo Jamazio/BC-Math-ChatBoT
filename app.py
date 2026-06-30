@@ -380,7 +380,7 @@ elif user_query:
             st.session_state.is_in_walkthrough = False
         elif any(word in user_query.lower() for word in ["next", "continue", "yes", "ready"]):
             st.session_state.walkthrough_step += 1
-            if st.session_state.walkthrough_step > 6:
+            if st.session_state.walkthrough_step > 5:
                 st.session_state.is_in_walkthrough = False
     
     st.session_state.messages.append({"role": "user", "content": user_query})
@@ -406,21 +406,20 @@ if execute_ai:
         walkthrough_directive = f"""
 🔴 STRICT WALKTHROUGH MODE ACTIVE:
 Current Guide: {st.session_state.active_guide}
-Current Position: Slide {st.session_state.walkthrough_step} of 6
+Current Position: Slide {st.session_state.walkthrough_step} of 5
 
 CRITICAL RULES FOR OUTPUT:
 1. You MUST ONLY output the content specific to Slide {st.session_state.walkthrough_step}. Do not summarize or view ahead.
 2. Structure your breakdown precisely according to the matching index below:
-   - Slide 1: Introduction and Point 1 (How to ask questions & Use symbols).
-   - Slide 2: Point 2 (Using the Calculator / Control Panel).
-   - Slide 3: Point 3 (Getting Unstuck & Micro-rules).
-   - Slide 4: Point 4 (Learning Paths & Study Resource URL lookups).
-   - Slide 5: EXPLORE MATH TOPICS & FORMULAS. Explain the drop-down accordion menu widget on the main application panel. Detail how students can select primary subjects (Algebra, Trig, Calculus, Statistics), pick specific subtopics, and hit 'Explain' to immediately review rules.
-   - Slide 6: LANGUAGE & STYLE SETTINGS. Explain how users can access the sidebar configuration expander module to instantly translate the UI engine to alternative frameworks (Español, Français, Deutsch) or type custom personas into the open prompt field.
+   - Slide 1: Introduction and Point 1. Explain how to ask specific questions and use the 'Insert Math Symbols' popover for complex notation.
+   - Slide 2: Point 2. Explain how to get unstuck (Student Guide) or generate differentiated hints (Faculty Guide).
+   - Slide 3: Point 3. Explain how to use external learning paths (Student Guide) or generate practice assessments/strategies (Faculty Guide).
+   - Slide 4: Point 4. EXPLORE MATH TOPICS & FORMULAS. Explain the drop-down accordion menu widget on the main application panel. Detail how users can select primary subjects, pick specific subtopics, and hit 'Explain'.
+   - Slide 5: Point 5. LANGUAGE & STYLE SETTINGS. Explain how users can access the sidebar configuration expander module to instantly translate the UI engine to alternative frameworks or type custom personas.
 
 3. Keep the output short and highly readable (3-4 sentences max per slide).
-4. You MUST ALWAYS append this exact phrase at the end of your response if it is slides 1 through 5: "👉 **Type 'Next' to continue.**"
-5. If this is Slide 6, congratulate them on finishing the full walkthrough. Do not add the 'Next' command.
+4. You MUST ALWAYS append this exact phrase at the end of your response if it is slides 1 through 4: "👉 **Type 'Next' to continue.**"
+5. If this is Slide 5, congratulate them on finishing the full walkthrough. Do not add the 'Next' command.
 """
 
     SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
@@ -461,12 +460,12 @@ CRITICAL LANGUAGE REQUIREMENT:
 
     if st.session_state.is_in_walkthrough:
         if "next" in user_query.lower() or st.session_state.walkthrough_step == 1:
-            if st.session_state.walkthrough_step <= 4:
+            if st.session_state.walkthrough_step <= 3:
                 formatted_messages[-1]["content"] = f"We are on Slide {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Provide ONLY text corresponding to step #{st.session_state.walkthrough_step}. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
+            elif st.session_state.walkthrough_step == 4:
+                formatted_messages[-1]["content"] = "Generate Slide 4: Explain the 'Explore Math Topics & Formulas' dropdown tool on the dashboard screen. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
             elif st.session_state.walkthrough_step == 5:
-                formatted_messages[-1]["content"] = "Generate Slide 5: Explain the 'Explore Math Topics & Formulas' dropdown tool on the dashboard screen. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
-            elif st.session_state.walkthrough_step == 6:
-                formatted_messages[-1]["content"] = "Generate Slide 6: Explain how to change UI dialects or write custom styling tags under 'Language & Style Settings' in the sidebar."
+                formatted_messages[-1]["content"] = "Generate Slide 5: Explain how to change UI dialects or write custom styling tags under 'Language & Style Settings' in the sidebar. Congratulate them on finishing."
 
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
