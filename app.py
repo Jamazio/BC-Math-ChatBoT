@@ -1,15 +1,24 @@
 import streamlit as st
 import streamlit.components.v1 as components
 from groq import Groq
+from supabase import create_client, Client
 import time
 import json
-import csv
 import os
 from datetime import datetime
 
 # =====================================
-# 1. CORE DATA FUNCTIONS (Survey, CSV, OneDrive)
+# 1. CORE DATA FUNCTIONS (Supabase, OneDrive)
 # =====================================
+# Initialize Supabase Client securely
+@st.cache_resource
+def init_supabase() -> Client:
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+supabase = init_supabase()
+
 def load_survey_questions(filepath='survey_questions.json'):
     try:
         with open(filepath, 'r') as file:
@@ -17,23 +26,32 @@ def load_survey_questions(filepath='survey_questions.json'):
     except FileNotFoundError:
         return []
 
-def save_feedback(student_id, question_id, response, filepath='student_feedback.csv'):
-    file_exists = os.path.isfile(filepath)
-    with open(filepath, 'a', newline='') as file:
-        writer = csv.writer(file)
-        if not file_exists:
-            writer.writerow(['Timestamp', 'StudentID', 'QuestionID', 'Response'])
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        writer.writerow([timestamp, student_id, question_id, response])
+def save_feedback(student_id, question_id, response):
+    """Saves feedback directly to Supabase instead of a local CSV."""
+    try:
+        data = {
+            "student_id": student_id,
+            "question_id": str(question_id),
+            "response": str(response)
+        }
+        supabase.table("student_feedback").insert(data).execute()
+    except Exception as e:
+        st.error(f"Failed to save feedback to database: {e}")
 
 def log_communication(user_input, bot_response):
+    """Logs the conversation to your local Benedict College OneDrive."""
     onedrive_dir = r"C:\Users\Jamazio Mcphee\OneDrive - Benedict College"
+    
+    # Ensure the directory exists just in case the path isn't mapped yet
+    if not os.path.exists(onedrive_dir):
+        os.makedirs(onedrive_dir, exist_ok=True)
+        
     log_file_path = os.path.join(onedrive_dir, "math_bot_chat_logs.txt")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}]\nUser: {user_input}\nBot: {bot_response}\n---\n"
     
     try:
-        with open(log_file_path, 'a') as file:
+        with open(log_file_path, 'a', encoding="utf-8") as file:
             file.write(log_entry)
     except Exception as e:
         print(f"Failed to write to OneDrive: {e}")
@@ -59,7 +77,6 @@ st.markdown("""
         color: #F0F2F6 !important; 
         font-style: italic; 
     }
-
     /* Accent lines and styling wrappers */
     div[data-testid="stSidebar"] { background-color: #1A1A1A; }
     div[data-testid="stChatInput"] { border: 2px solid #4C145E !important; border-radius: 12px; }
@@ -106,34 +123,6 @@ UI_TEXT = {
         "select_area": "Seleccionar Área",
         "select_topic": "Seleccionar Tema",
         "explain_btn": "Explicar"
-    },
-    "Français": {
-        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
-        "lang_prompt": "🌍 Choisissez votre langue",
-        "ctrl_header": "Panneau de Configuration",
-        "ctrl_info": "Le spécialiste mathématique BC est prêt à vous aider !",
-        "reset_btn": "Réinitialiser la Conversation",
-        "chat_placeholder": "Bonjour ! Avec quel problème de mathématiques puis-je vous aider aujourd'hui ? 🐅",
-        "sys_prompt": "Vous devez répondre UNIQUEMENT en français.",
-        "error_msg": "Erreur d'authentification ou d'API. Veuillez vérifier votre configuration.",
-        "explore_header": "Explorer les Sujets et Formules",
-        "select_area": "Sélectionner le Domaine",
-        "select_topic": "Sélectionner le Sujet",
-        "explain_btn": "Expliquer"
-    },
-    "Deutsch": {
-        "caption": "Ihr BC Mathematik-Spezialist | Erstellt von Mark Wells und Jamazio Mcphee",
-        "lang_prompt": "🌍 Sprache auswählen",
-        "ctrl_header": "Kontrollzentrum",
-        "ctrl_info": "Der BC Mathematik-Spezialist ist authentifiziert und bereit zu helfen!",
-        "reset_btn": "Konversation zurücksetzen",
-        "chat_placeholder": "Hallo! Bei welchem Mathematikproblem kann ich heute helfen? 🐅",
-        "sys_prompt": "Du musst AUSSCHLIESSLICH auf Deutsch antworten.",
-        "error_msg": "Authentifizierungs- oder API-Fehler. Bitte überprüfe deine Systemkonfiguration.",
-        "explore_header": "Mathe-Themen & Formeln Erkunden",
-        "select_area": "Bereich Auswählen",
-        "select_topic": "Thema Auswählen",
-        "explain_btn": "Erklären"
     }
 }
 
@@ -178,7 +167,6 @@ def send_symbol_to_state(symbol):
 with st.sidebar:
     st.header("📖 Training Guides")
     
-    # --- Walkthrough Triggers ---
     if st.button("🎓 Student Guide Walkthrough", use_container_width=True):
         st.session_state.is_in_walkthrough = True
         st.session_state.walkthrough_step = 1
@@ -198,42 +186,6 @@ with st.sidebar:
     with st.expander("🌍 Language & Style Settings", expanded=False):
         st.radio("Choose Language", list(UI_TEXT.keys()), key="language")
         st.text_input("🎭 Custom Persona / Style:", placeholder="e.g., Southern style, surfer slang...", key="custom_style")
-
-    # --- NEW: Feedback Survey Integration (Forms & Multiple Questions) ---
-    st.write("---")
-    st.header("📝 Leave Feedback")
-    questions = load_survey_questions()
-    
-    if questions:
-        with st.form("feedback_form"):
-            responses = {}
-            for i, q in enumerate(questions):
-                # Safeguard: if the JSON is still a string list, guess the type
-                if isinstance(q, str):
-                    q_text = q
-                    q_id = f"q{i+1}"
-                    if "scale" in q_text.lower() or "confident" in q_text.lower():
-                        responses[q_id] = st.slider(q_text, 1, 5, key=q_id)
-                    else:
-                        responses[q_id] = st.text_area(q_text, key=q_id)
-                
-                # If the JSON is using the updated dictionaries (Correct way)
-                else:
-                    q_text = q.get("question", "Feedback Question")
-                    q_id = q.get("id", f"q{i+1}")
-                    q_type = q.get("type", "text")
-                    
-                    if q_type == "scale":
-                        responses[q_id] = st.slider(q_text, 1, 5, key=q_id)
-                    else:
-                        responses[q_id] = st.text_area(q_text, key=q_id)
-                        
-            # Form submit button
-            submitted = st.form_submit_button("Submit Feedback", use_container_width=True)
-            if submitted:
-                for q_id, resp in responses.items():
-                    save_feedback(student_id="Student_01", question_id=q_id, response=resp)
-                st.success("Feedback saved to CSV! Thank you.")
 
     st.write("---")
     st.header(lang["ctrl_header"])
@@ -304,7 +256,44 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # =====================================
-# 11. INTERACTIVE TOPIC EXPLORER
+# 11. END-OF-CONVERSATION SURVEY (Moved from Sidebar)
+# =====================================
+# Only show the survey if there has been an interaction
+if len(st.session_state.messages) > 1:
+    st.write("---")
+    with st.expander("📝 Done with your session? Please leave a quick survey!"):
+        questions = load_survey_questions()
+        if questions:
+            with st.form("feedback_form_main"):
+                responses = {}
+                for i, q in enumerate(questions):
+                    if isinstance(q, str):
+                        q_text = q
+                        q_id = f"q{i+1}"
+                        if "scale" in q_text.lower() or "confident" in q_text.lower():
+                            responses[q_id] = st.slider(q_text, 1, 5, key=f"main_{q_id}")
+                        else:
+                            responses[q_id] = st.text_area(q_text, key=f"main_{q_id}")
+                    else:
+                        q_text = q.get("question", "Feedback Question")
+                        q_id = q.get("id", f"q{i+1}")
+                        q_type = q.get("type", "text")
+                        
+                        if q_type == "scale":
+                            responses[q_id] = st.slider(q_text, 1, 5, key=f"main_{q_id}")
+                        else:
+                            responses[q_id] = st.text_area(q_text, key=f"main_{q_id}")
+                            
+                submitted = st.form_submit_button("Submit Feedback", use_container_width=True)
+                if submitted:
+                    for q_id, resp in responses.items():
+                        save_feedback(student_id="Student_01", question_id=q_id, response=resp)
+                    st.success("Feedback sent directly to our database! Thank you. 🐅")
+        else:
+            st.info("No survey questions currently loaded.")
+
+# =====================================
+# 12. INTERACTIVE TOPIC EXPLORER
 # =====================================
 with st.expander(f"📚 {lang['explore_header']}", expanded=False):
     t_col1, t_col2 = st.columns(2)
@@ -322,7 +311,7 @@ with st.expander(f"📚 {lang['explore_header']}", expanded=False):
         st.rerun()
 
 # =====================================
-# 12. INPUT & EXECUTION LAYER 
+# 13. INPUT & EXECUTION LAYER 
 # =====================================
 if st.session_state.target_symbol:
     safe_symbol = st.session_state.target_symbol.replace("'", "\\'")
