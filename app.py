@@ -12,8 +12,8 @@ from datetime import datetime
 # =====================================
 @st.cache_resource
 def init_supabase() -> Client:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
+    url = st.secrets["https://qxqonapbttmjmlvshhso.supabase.co"]
+    key = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4cW9uYXBidHRtam1sdnNoaHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MjE5NTYsImV4cCI6MjA5ODI5Nzk1Nn0.7YXM-X9qXYN6uxzYwniMEQlMwLzZTBrpmHuQIwfg9s0"]
     return create_client(url, key)
 
 supabase = init_supabase()
