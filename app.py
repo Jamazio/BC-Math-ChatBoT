@@ -10,9 +10,9 @@ from datetime import datetime
 # =====================================
 # 1. CORE DATA FUNCTIONS (Supabase, OneDrive)
 # =====================================
-# Initialize Supabase Client securely
 @st.cache_resource
 def init_supabase() -> Client:
+    """Initializes the connection to your Supabase project using secrets."""
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
@@ -27,7 +27,7 @@ def load_survey_questions(filepath='survey_questions.json'):
         return []
 
 def save_feedback(student_id, question_id, response):
-    """Saves feedback directly to Supabase instead of a local CSV."""
+    """Inserts a student response directly into your Supabase table."""
     try:
         data = {
             "student_id": student_id,
@@ -36,13 +36,12 @@ def save_feedback(student_id, question_id, response):
         }
         supabase.table("student_feedback").insert(data).execute()
     except Exception as e:
-        st.error(f"Failed to save feedback to database: {e}")
+        st.error(f"Failed to save feedback to Supabase: {e}")
 
 def log_communication(user_input, bot_response):
-    """Logs the conversation to your local Benedict College OneDrive."""
+    """Logs the conversation history directly to your local OneDrive folder."""
     onedrive_dir = r"C:\Users\Jamazio Mcphee\OneDrive - Benedict College"
     
-    # Ensure the directory exists just in case the path isn't mapped yet
     if not os.path.exists(onedrive_dir):
         os.makedirs(onedrive_dir, exist_ok=True)
         
@@ -65,10 +64,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Custom CSS Injection: BC Purple & Tiger Gold Theme ---
+# --- Custom Purple & Gold Styling ---
 st.markdown("""
     <style>
-    /* Title and Subtitle Styling */
     h1 { 
         color: #FFD700 !important; 
         font-family: 'Arial Black', Gadget, sans-serif; 
@@ -77,11 +75,9 @@ st.markdown("""
         color: #F0F2F6 !important; 
         font-style: italic; 
     }
-    /* Accent lines and styling wrappers */
     div[data-testid="stSidebar"] { background-color: #1A1A1A; }
     div[data-testid="stChatInput"] { border: 2px solid #4C145E !important; border-radius: 12px; }
     
-    /* Popover Menu Styling */
     div[data-testid="stPopover"] > button {
         background-color: #262730 !important;
         color: #FFD700 !important;
@@ -162,7 +158,7 @@ def send_symbol_to_state(symbol):
     st.session_state.target_symbol = symbol
 
 # =====================================
-# 6. SIDEBAR CONFIGURATION
+# 6. SIDEBAR CONFIGURATION (Feedback Cleaned From Here)
 # =====================================
 with st.sidebar:
     st.header("📖 Training Guides")
@@ -256,12 +252,11 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # =====================================
-# 11. END-OF-CONVERSATION SURVEY (Moved from Sidebar)
+# 11. END-OF-CONVERSATION SURVEY (Main Chat Stream)
 # =====================================
-# Only show the survey if there has been an interaction
 if len(st.session_state.messages) > 1:
     st.write("---")
-    with st.expander("📝 Done with your session? Please leave a quick survey!"):
+    with st.expander("📝 Done with your session? Please take a quick survey!", expanded=False):
         questions = load_survey_questions()
         if questions:
             with st.form("feedback_form_main"):
@@ -284,13 +279,13 @@ if len(st.session_state.messages) > 1:
                         else:
                             responses[q_id] = st.text_area(q_text, key=f"main_{q_id}")
                             
-                submitted = st.form_submit_button("Submit Feedback", use_container_width=True)
+                submitted = st.form_submit_button("Submit Feedback Securely", use_container_width=True)
                 if submitted:
                     for q_id, resp in responses.items():
                         save_feedback(student_id="Student_01", question_id=q_id, response=resp)
-                    st.success("Feedback sent directly to our database! Thank you. 🐅")
+                    st.success("Feedback successfully synced to Supabase! Thank you. 🐅")
         else:
-            st.info("No survey questions currently loaded.")
+            st.info("No localized survey questions config found.")
 
 # =====================================
 # 12. INTERACTIVE TOPIC EXPLORER
@@ -512,7 +507,6 @@ CRITICAL LANGUAGE REQUIREMENT:
                 "content": full_response
             })
             
-            # --- Log to OneDrive after successful response ---
             log_communication(user_query, full_response)
 
         except Exception as e:
