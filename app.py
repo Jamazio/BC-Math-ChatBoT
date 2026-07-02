@@ -301,7 +301,7 @@ if len(st.session_state.messages) > 0:
         st.write("---")
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("⭐ Rate BC TigerMath Chatbot", use_container_width=True):
+            if st.button("⭐ Rate BC TigerMath", use_container_width=True):
                 st.session_state.session_ended = True
                 st.rerun()
 
@@ -310,7 +310,7 @@ if len(st.session_state.messages) > 0:
         # Check if they haven't submitted yet -> Show Form
         if not st.session_state.feedback_submitted:
             with st.chat_message("assistant"):
-                st.markdown("### ⭐ Rate BC TigerMath Chatbot")
+                st.markdown("### ⭐ Rate BC TigerMath")
                 st.markdown("Thank you for using TigerMath! Please take a quick moment to rate your experience.")
                 
                 questions = load_survey_questions()
