@@ -5,6 +5,7 @@ from supabase import create_client, Client
 import time
 import json
 import os
+import uuid
 from datetime import datetime
 
 # =====================================
@@ -25,14 +26,10 @@ def load_survey_questions(filepath='survey_questions.json'):
     except FileNotFoundError:
         return []
 
-def save_feedback(student_id, question_id, response):
+def save_feedback(feedback_data):
+    """Expects a list of dictionaries mapped to student_feedback columns"""
     try:
-        data = {
-            "student_id": student_id,
-            "question_id": str(question_id),
-            "response": str(response)
-        }
-        supabase.table("student_feedback").insert(data).execute()
+        supabase.table("student_feedback").insert(feedback_data).execute()
     except Exception as e:
         st.error(f"Failed to save feedback to Supabase: {e}")
 
@@ -338,9 +335,22 @@ if len(st.session_state.messages) > 0:
                                 responses[q_id] = st.text_area(q_text, key=f"fb_{q_id}")
                                 
                     submitted = st.form_submit_button("Submit Feedback", use_container_width=True)
+                    
                     if submitted:
+                        # 1. Generate a unique ID for this specific student's session
+                        current_student_id = str(uuid.uuid4())[:8]
+                        
+                        # 2. Build the list of records to insert
+                        feedback_payload = []
                         for q_id, resp in responses.items():
-                            save_feedback(student_id="Student_01", question_id=q_id, response=resp)
+                            feedback_payload.append({
+                                "student_id": current_student_id,
+                                "question_id": str(q_id),
+                                "response": str(resp)
+                            })
+                            
+                        # 3. Save all responses at once using the updated function
+                        save_feedback(feedback_payload)
                         st.success("Feedback securely sent to Supabase! Have a great day! 🐅")
             else:
                 st.info("Survey questions not found.")
