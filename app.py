@@ -310,8 +310,8 @@ if len(st.session_state.messages) > 0:
         # Check if they haven't submitted yet -> Show Form
         if not st.session_state.feedback_submitted:
             with st.chat_message("assistant"):
-                st.markdown("### 📝 Session Wrap-Up")
-                st.markdown("Thank you for chatting! Please let me know how I did before you go.")
+                st.markdown("### ⭐ Rate BC TigerMath Chatbot")
+                st.markdown("Thank you for using TigerMath! Please take a quick moment to rate your experience.")
                 
                 questions = load_survey_questions()
                 if questions:
@@ -358,7 +358,7 @@ if len(st.session_state.messages) > 0:
         # If they already submitted -> Hide form and display clean success message
         else:
             with st.chat_message("assistant"):
-                st.success("🎉 Feedback securely sent to Supabase! Thank you for helping us improve. Have a great day! 🐅")
+                st.success("🎉 Rating submitted! Thank you for your feedback. Have a great day! 🐅")
 
 # =====================================
 # 13. INPUT & EXECUTION LAYER 
