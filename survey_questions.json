@@ -1,6 +1,52 @@
 [
-    "How confident do you feel about the material covered in this session?",
-    "What was the most challenging concept you encountered today?",
-    "On a scale of 1-5, how helpful was the AI tutor's explanation?",
-    "Did you feel engaged during this learning session?"
+  {
+    "id": "help_understanding",
+    "type": "scale",
+    "question": "How well did the chatbot help you understand the learning material?\n(1: Not at all helpful ↔ 5: Extremely helpful)"
+  },
+  {
+    "id": "improve_skills",
+    "type": "scale",
+    "question": "Did interacting with the chatbot improve your problem-solving skills or critical thinking in learning?\n(1: Strongly disagree ↔ 5: Strongly agree)"
+  },
+  {
+    "id": "concept_confidence",
+    "type": "scale",
+    "question": "How confident are you in your understanding of the concepts after using the chatbot?\n(1: Not confident at all ↔ 5: Completely confident)"
+  },
+  {
+    "id": "socratic_steps",
+    "type": "scale",
+    "question": "How often did the chatbot encourage you to think through the steps of a problem instead of giving a direct answer?\n(1: Never ↔ 5: Always)"
+  },
+  {
+    "id": "explanation_effectiveness",
+    "type": "scale",
+    "question": "When you didn’t understand a concept, how effective was the chatbot in explaining or guiding you toward the solution?\n(1: Not at all effective ↔ 5: Extremely effective)"
+  },
+  {
+    "id": "engagement_focus",
+    "type": "scale",
+    "question": "How engaging was the chatbot in helping you stay focused and motivated to learn?\n(1: Not engaging at all ↔ 5: Extremely engaging)"
+  },
+  {
+    "id": "prompt_reflection",
+    "type": "scale",
+    "question": "Did the chatbot ask questions that prompted you to reflect on or apply what you learned?\n(1: Never ↔ 5: Always)"
+  },
+  {
+    "id": "ease_of_use",
+    "type": "scale",
+    "question": "How easy was it to use the chatbot for learning?\n(1: Very difficult ↔ 5: Very easy)"
+  },
+  {
+    "id": "reuse_intent",
+    "type": "scale",
+    "question": "Would you use the chatbot again for learning or problem-solving?\n(1: Definitely not ↔ 5: Definitely yes)"
+  },
+  {
+    "id": "suggested_improvements",
+    "type": "text",
+    "question": "What improvements would you suggest to make the chatbot more helpful for understanding the material?"
+  }
 ]
