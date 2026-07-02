@@ -118,7 +118,7 @@ UI_TEXT = {
         "explain_btn": "Explicar"
     },
     "Français": {
-        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells et Jamazio Mcphee",
+        "caption": "Votre spécialiste mathématique BC | Créé par Mark Wells y Jamazio Mcphee",
         "lang_prompt": "🌍 Choisissez votre langue",
         "ctrl_header": "Panneau de Configuration",
         "ctrl_info": "Le spécialiste mathématique BC est prêt à vous aider !",
@@ -169,6 +169,7 @@ if "is_in_walkthrough" not in st.session_state: st.session_state.is_in_walkthrou
 if "walkthrough_step" not in st.session_state: st.session_state.walkthrough_step = 0
 if "active_guide" not in st.session_state: st.session_state.active_guide = ""
 if "session_ended" not in st.session_state: st.session_state.session_ended = False
+if "feedback_submitted" not in st.session_state: st.session_state.feedback_submitted = False
 
 lang = UI_TEXT.get(st.session_state.language, UI_TEXT["English"])
 
@@ -212,6 +213,7 @@ with st.sidebar:
         st.session_state.is_in_walkthrough = False
         st.session_state.walkthrough_step = 0
         st.session_state.session_ended = False
+        st.session_state.feedback_submitted = False
         st.rerun()
 
 # =====================================
@@ -305,55 +307,60 @@ if len(st.session_state.messages) > 0:
                 st.session_state.session_ended = True
                 st.rerun()
 
-    # Present the survey directly in chat
+    # Present the survey directly in chat if session ended
     if st.session_state.session_ended:
-        with st.chat_message("assistant"):
-            st.markdown("### 📝 Session Wrap-Up")
-            st.markdown("Thank you for chatting! Please let me know how I did before you go.")
-            
-            questions = load_survey_questions()
-            if questions:
-                with st.form("inline_feedback_form"):
-                    responses = {}
-                    for i, q in enumerate(questions):
-                        # Handle strings vs dictionaries safely
-                        if isinstance(q, str):
-                            q_text = q
-                            q_id = f"q{i+1}"
-                            if "scale" in q_text.lower() or "confident" in q_text.lower():
-                                responses[q_id] = st.slider(q_text, 1, 5, key=f"fb_{q_id}")
+        # Check if they haven't submitted yet -> Show Form
+        if not st.session_state.feedback_submitted:
+            with st.chat_message("assistant"):
+                st.markdown("### 📝 Session Wrap-Up")
+                st.markdown("Thank you for chatting! Please let me know how I did before you go.")
+                
+                questions = load_survey_questions()
+                if questions:
+                    with st.form("inline_feedback_form"):
+                        responses = {}
+                        for i, q in enumerate(questions):
+                            if isinstance(q, str):
+                                q_text = q
+                                q_id = f"q{i+1}"
+                                if "scale" in q_text.lower() or "confident" in q_text.lower() or "↔" in q_text:
+                                    responses[q_id] = st.slider(q_text, 1, 5, key=f"fb_{q_id}")
+                                else:
+                                    responses[q_id] = st.text_area(q_text, key=f"fb_{q_id}")
                             else:
-                                responses[q_id] = st.text_area(q_text, key=f"fb_{q_id}")
-                        else:
-                            q_text = q.get("question", "Feedback Question")
-                            q_id = q.get("id", f"q{i+1}")
-                            q_type = q.get("type", "text")
-                            
-                            if q_type == "scale":
-                                responses[q_id] = st.slider(q_text, 1, 5, key=f"fb_{q_id}")
-                            else:
-                                responses[q_id] = st.text_area(q_text, key=f"fb_{q_id}")
+                                q_text = q.get("question", "Feedback Question")
+                                q_id = q.get("id", f"q{i+1}")
+                                q_type = q.get("type", "text")
                                 
-                    submitted = st.form_submit_button("Submit Feedback", use_container_width=True)
-                    
-                    if submitted:
-                        # 1. Generate a unique ID for this specific student's session
-                        current_student_id = str(uuid.uuid4())[:8]
+                                if q_type == "scale":
+                                    responses[q_id] = st.slider(q_text, 1, 5, key=f"fb_{q_id}")
+                                else:
+                                    responses[q_id] = st.text_area(q_text, key=f"fb_{q_id}")
+                                    
+                        submitted = st.form_submit_button("Submit Feedback", use_container_width=True)
                         
-                        # 2. Build the list of records to insert
-                        feedback_payload = []
-                        for q_id, resp in responses.items():
-                            feedback_payload.append({
-                                "student_id": current_student_id,
-                                "question_id": str(q_id),
-                                "response": str(resp)
-                            })
+                        if submitted:
+                            current_student_id = str(uuid.uuid4())[:8]
+                            feedback_payload = []
+                            for q_id, resp in responses.items():
+                                feedback_payload.append({
+                                    "student_id": current_student_id,
+                                    "question_id": str(q_id),
+                                    "response": str(resp)
+                                })
+                                
+                            save_feedback(feedback_payload)
                             
-                        # 3. Save all responses at once using the updated function
-                        save_feedback(feedback_payload)
-                        st.success("Feedback securely sent to Supabase! Have a great day! 🐅")
-            else:
-                st.info("Survey questions not found.")
+                            # Set tracker flag to True and rerun to make form disappear!
+                            st.session_state.feedback_submitted = True
+                            st.rerun()
+                else:
+                    st.info("Survey questions not found.")
+        
+        # If they already submitted -> Hide form and display clean success message
+        else:
+            with st.chat_message("assistant"):
+                st.success("🎉 Feedback securely sent to Supabase! Thank you for helping us improve. Have a great day! 🐅")
 
 # =====================================
 # 13. INPUT & EXECUTION LAYER 
