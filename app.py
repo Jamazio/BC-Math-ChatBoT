@@ -269,22 +269,20 @@ except:
 # =====================================
 # 10. INTERACTIVE TOPIC EXPLORER
 # =====================================
-# Hide if session is ended to focus on feedback
-if not st.session_state.session_ended:
-    with st.expander(f"📚 {lang['explore_header']}", expanded=False):
-        t_col1, t_col2 = st.columns(2)
-        with t_col1:
-            selected_area = st.selectbox(lang["select_area"], list(MATH_TOPICS.keys()))
-        with t_col2:
-            selected_topic = st.selectbox(lang["select_topic"], MATH_TOPICS[selected_area])
-            
-        if st.button(f"{lang['explain_btn']} {selected_topic}", use_container_width=True):
-            st.session_state.is_in_walkthrough = False 
-            st.session_state.messages.append({
-                "role": "user",
-                "content": f"Can you give me the core formula and a brief conceptual explanation of how to approach: {selected_topic}?"
-            })
-            st.rerun()
+with st.expander(f"📚 {lang['explore_header']}", expanded=False):
+    t_col1, t_col2 = st.columns(2)
+    with t_col1:
+        selected_area = st.selectbox(lang["select_area"], list(MATH_TOPICS.keys()))
+    with t_col2:
+        selected_topic = st.selectbox(lang["select_topic"], MATH_TOPICS[selected_area])
+        
+    if st.button(f"{lang['explain_btn']} {selected_topic}", use_container_width=True):
+        st.session_state.is_in_walkthrough = False 
+        st.session_state.messages.append({
+            "role": "user",
+            "content": f"Can you give me the core formula and a brief conceptual explanation of how to approach: {selected_topic}?"
+        })
+        st.rerun()
 
 # =====================================
 # 11. RENDER EXISTING CHAT HISTORY
@@ -365,89 +363,90 @@ if len(st.session_state.messages) > 0:
 # =====================================
 # 13. INPUT & EXECUTION LAYER 
 # =====================================
-# Hide input if session is ended to focus on feedback
-if not st.session_state.session_ended:
+if st.session_state.target_symbol:
+    safe_symbol = st.session_state.target_symbol.replace("'", "\\'")
+    js_injector = f"""
+    <script>
+    var textarea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+    if (textarea) {{
+        var valueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+        valueSetter.call(textarea, textarea.value + '{safe_symbol}');
+        textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
+        textarea.focus();
+    }}
+    </script>
+    """
+    components.html(js_injector, height=0, width=0)
+    st.session_state.target_symbol = None  
 
-    if st.session_state.target_symbol:
-        safe_symbol = st.session_state.target_symbol.replace("'", "\\'")
-        js_injector = f"""
-        <script>
-        var textarea = window.parent.document.querySelector('textarea[data-testid="stChatInputTextArea"]');
-        if (textarea) {{
-            var valueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-            valueSetter.call(textarea, textarea.value + '{safe_symbol}');
-            textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
-            textarea.focus();
-        }}
-        </script>
-        """
-        components.html(js_injector, height=0, width=0)
-        st.session_state.target_symbol = None  
-
-    with st.popover("📐 Insert Math Symbols & Operations"):
-        sym_tabs = st.tabs(["Algebra", "Trig", "Calc/Stats"])
+with st.popover("📐 Insert Math Symbols & Operations"):
+    sym_tabs = st.tabs(["Algebra", "Trig", "Calc/Stats"])
+    
+    with sym_tabs[0]:
+        s_row1 = st.columns(6)
+        s_row1[0].button("π", key="sym_pi", on_click=send_symbol_to_state, args=("π",), use_container_width=True)
+        s_row1[1].button("√", key="sym_sqrt", on_click=send_symbol_to_state, args=("√(",), use_container_width=True)
+        s_row1[2].button("²", key="sym_sq", on_click=send_symbol_to_state, args=("²",), use_container_width=True)
+        s_row1[3].button("^", key="sym_pow", on_click=send_symbol_to_state, args=("^",), use_container_width=True)
+        s_row1[4].button("±", key="sym_pm", on_click=send_symbol_to_state, args=("±",), use_container_width=True)
+        s_row1[5].button("x", key="sym_x", on_click=send_symbol_to_state, args=("x",), use_container_width=True)
         
-        with sym_tabs[0]:
-            s_row1 = st.columns(6)
-            s_row1[0].button("π", key="sym_pi", on_click=send_symbol_to_state, args=("π",), use_container_width=True)
-            s_row1[1].button("√", key="sym_sqrt", on_click=send_symbol_to_state, args=("√(",), use_container_width=True)
-            s_row1[2].button("²", key="sym_sq", on_click=send_symbol_to_state, args=("²",), use_container_width=True)
-            s_row1[3].button("^", key="sym_pow", on_click=send_symbol_to_state, args=("^",), use_container_width=True)
-            s_row1[4].button("±", key="sym_pm", on_click=send_symbol_to_state, args=("±",), use_container_width=True)
-            s_row1[5].button("x", key="sym_x", on_click=send_symbol_to_state, args=("x",), use_container_width=True)
-            
-        with sym_tabs[1]:
-            s_row2 = st.columns(5)
-            s_row2[0].button("sin", key="sym_sin", on_click=send_symbol_to_state, args=("sin(",), use_container_width=True)
-            s_row2[1].button("cos", key="sym_cos", on_click=send_symbol_to_state, args=("cos(",), use_container_width=True)
-            s_row2[2].button("tan", key="sym_tan", on_click=send_symbol_to_state, args=("tan(",), use_container_width=True)
-            s_row2[3].button("θ", key="sym_theta", on_click=send_symbol_to_state, args=("θ",), use_container_width=True)
-            s_row2[4].button("°", key="sym_deg", on_click=send_symbol_to_state, args=("°",), use_container_width=True)
+    with sym_tabs[1]:
+        s_row2 = st.columns(5)
+        s_row2[0].button("sin", key="sym_sin", on_click=send_symbol_to_state, args=("sin(",), use_container_width=True)
+        s_row2[1].button("cos", key="sym_cos", on_click=send_symbol_to_state, args=("cos(",), use_container_width=True)
+        s_row2[2].button("tan", key="sym_tan", on_click=send_symbol_to_state, args=("tan(",), use_container_width=True)
+        s_row2[3].button("θ", key="sym_theta", on_click=send_symbol_to_state, args=("θ",), use_container_width=True)
+        s_row2[4].button("°", key="sym_deg", on_click=send_symbol_to_state, args=("°",), use_container_width=True)
 
-        with sym_tabs[2]:
-            s_row3 = st.columns(6)
-            s_row3[0].button("∫", key="sym_int", on_click=send_symbol_to_state, args=("∫",), use_container_width=True)
-            s_row3[1].button("d/dx", key="sym_diff", on_click=send_symbol_to_state, args=("d/dx ",), use_container_width=True)
-            s_row3[2].button("lim", key="sym_lim", on_click=send_symbol_to_state, args=("lim ",), use_container_width=True)
-            s_row3[3].button("∑", key="sym_sigma", on_click=send_symbol_to_state, args=("∑",), use_container_width=True)
-            s_row3[4].button("∞", key="sym_inf", on_click=send_symbol_to_state, args=("∞",), use_container_width=True)
-            s_row3[5].button("Δ", key="sym_delta", on_click=send_symbol_to_state, args=("Δ",), use_container_width=True)
+    with sym_tabs[2]:
+        s_row3 = st.columns(6)
+        s_row3[0].button("∫", key="sym_int", on_click=send_symbol_to_state, args=("∫",), use_container_width=True)
+        s_row3[1].button("d/dx", key="sym_diff", on_click=send_symbol_to_state, args=("d/dx ",), use_container_width=True)
+        s_row3[2].button("lim", key="sym_lim", on_click=send_symbol_to_state, args=("lim ",), use_container_width=True)
+        s_row3[3].button("∑", key="sym_sigma", on_click=send_symbol_to_state, args=("∑",), use_container_width=True)
+        s_row3[4].button("∞", key="sym_inf", on_click=send_symbol_to_state, args=("∞",), use_container_width=True)
+        s_row3[5].button("Δ", key="sym_delta", on_click=send_symbol_to_state, args=("Δ",), use_container_width=True)
 
-    user_query = st.chat_input(lang["chat_placeholder"])
+user_query = st.chat_input(lang["chat_placeholder"])
 
-    if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] == "user":
-        user_query = st.session_state.messages[-1]["content"]
-        execute_ai = True
-    elif user_query:
-        if st.session_state.is_in_walkthrough:
-            if any(word in user_query.lower() for word in ["stop", "exit", "cancel", "done", "math"]):
+if len(st.session_state.messages) > 0 and st.session_state.messages[-1]["role"] == "user":
+    user_query = st.session_state.messages[-1]["content"]
+    execute_ai = True
+elif user_query:
+    if st.session_state.feedback_submitted:
+        st.session_state.session_ended = False
+        st.session_state.feedback_submitted = False
+        
+    if st.session_state.is_in_walkthrough:
+        if any(word in user_query.lower() for word in ["stop", "exit", "cancel", "done", "math"]):
+            st.session_state.is_in_walkthrough = False
+        elif any(word in user_query.lower() for word in ["next", "continue", "yes", "ready"]):
+            st.session_state.walkthrough_step += 1
+            if st.session_state.walkthrough_step > 5:
                 st.session_state.is_in_walkthrough = False
-            elif any(word in user_query.lower() for word in ["next", "continue", "yes", "ready"]):
-                st.session_state.walkthrough_step += 1
-                if st.session_state.walkthrough_step > 5:
-                    st.session_state.is_in_walkthrough = False
         
-        st.session_state.messages.append({"role": "user", "content": user_query})
-        with st.chat_message("user"):
-            st.markdown(user_query)
-        execute_ai = True
-    else:
-        execute_ai = False
+    st.session_state.messages.append({"role": "user", "content": user_query})
+    with st.chat_message("user"):
+        st.markdown(user_query)
+    execute_ai = True
+else:
+    execute_ai = False
 
-    if execute_ai:
-        custom_style_val = st.session_state.get("custom_style", "")
-        style_instruction = f"\n- PERSONALITY: {custom_style_val}." if custom_style_val else ""
-        
-        campus_context = ""
-        if any(kw in user_query.lower() for kw in ["benedict", "college", "campus", "bc ", "tiger", "history", "founded", "faculty"]):
-            campus_context = f"""
+if execute_ai:
+    custom_style_val = st.session_state.get("custom_style", "")
+    style_instruction = f"\n- PERSONALITY: {custom_style_val}." if custom_style_val else ""
+    
+    campus_context = ""
+    if any(kw in user_query.lower() for kw in ["benedict", "college", "campus", "bc ", "tiger", "history", "founded", "faculty"]):
+        campus_context = f"""
 🔴 CAMPUS KNOWLEDGE EXCEPTION:
 - Answer general questions about Benedict College accurately using the VERIFIED CAMPUS DATA below.
 {campus_knowledge_base}"""
 
-        walkthrough_directive = ""
-        if st.session_state.is_in_walkthrough:
-            walkthrough_directive = f"""
+    walkthrough_directive = ""
+    if st.session_state.is_in_walkthrough:
+        walkthrough_directive = f"""
 🔴 STRICT WALKTHROUGH MODE ACTIVE:
 Current Guide: {st.session_state.active_guide}
 Current Position: Slide {st.session_state.walkthrough_step} of 5
@@ -466,7 +465,7 @@ CRITICAL RULES FOR OUTPUT:
 5. If this is Slide 5, congratulate them on finishing the full walkthrough. Do not add the 'Next' command.
 """
 
-        SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
+    SYSTEM_INSTRUCTION = f"""You are 'BC TigerMath AI', a strict Socratic mathematics tutor and the premier BC Math Specialist at Benedict College. Match the energy a person comes with, and add a little tiger pride and humor from time to time.{style_instruction}
 
 🚨 CRITICAL GUARDRAIL: ABSOLUTE SOCRATIC METHOD
 - NEVER GIVE AWAY THE FINAL ANSWER OR A FULL STEP-BY-STEP SOLUTION UPFRONT.
@@ -494,81 +493,81 @@ CRITICAL LANGUAGE REQUIREMENT:
 - If they make an error, point out the breakdown in logic gently.
 """
 
-        formatted_messages = [
-            {"role": "system", "content": SYSTEM_INSTRUCTION}
-        ]
-        
-        for msg in st.session_state.messages:
-            if msg["role"] == "user" or (msg["role"] == "assistant" and not msg["content"].startswith("📚 **Quick References:**")):
-                formatted_messages.append({"role": msg["role"], "content": msg["content"]})
+    formatted_messages = [
+        {"role": "system", "content": SYSTEM_INSTRUCTION}
+    ]
+    
+    for msg in st.session_state.messages:
+        if msg["role"] == "user" or (msg["role"] == "assistant" and not msg["content"].startswith("📚 **Quick References:**")):
+            formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
-        if st.session_state.is_in_walkthrough:
-            if "next" in user_query.lower() or st.session_state.walkthrough_step == 1:
-                if st.session_state.walkthrough_step <= 3:
-                    formatted_messages[-1]["content"] = f"We are on Slide {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Provide ONLY text corresponding to step #{st.session_state.walkthrough_step}. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
-                elif st.session_state.walkthrough_step == 4:
-                    formatted_messages[-1]["content"] = "Generate Slide 4: Explain the 'Explore Math Topics & Formulas' dropdown tool on the dashboard screen. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
-                elif st.session_state.walkthrough_step == 5:
-                    formatted_messages[-1]["content"] = "Generate Slide 5: Explain how to change UI dialects or write custom styling tags under 'Language & Style Settings' in the sidebar. Congratulate them on finishing."
+    if st.session_state.is_in_walkthrough:
+        if "next" in user_query.lower() or st.session_state.walkthrough_step == 1:
+            if st.session_state.walkthrough_step <= 3:
+                formatted_messages[-1]["content"] = f"We are on Slide {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Provide ONLY text corresponding to step #{st.session_state.walkthrough_step}. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
+            elif st.session_state.walkthrough_step == 4:
+                formatted_messages[-1]["content"] = "Generate Slide 4: Explain the 'Explore Math Topics & Formulas' dropdown tool on the dashboard screen. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
+            elif st.session_state.walkthrough_step == 5:
+                formatted_messages[-1]["content"] = "Generate Slide 5: Explain how to change UI dialects or write custom styling tags under 'Language & Style Settings' in the sidebar. Congratulate them on finishing."
 
-        with st.chat_message("assistant"):
-            response_placeholder = st.empty()
-            scroll_placeholder = st.empty()
-            full_response = ""
-            seen_urls = set()
+    with st.chat_message("assistant"):
+        response_placeholder = st.empty()
+        scroll_placeholder = st.empty()
+        full_response = ""
+        seen_urls = set()
 
-            user_resources = get_math_resources(user_query)
-            if user_resources and not st.session_state.is_in_walkthrough:
-                full_response += "📚 **Quick References:**\n"
-                for title, url in user_resources:
+        user_resources = get_math_resources(user_query)
+        if user_resources and not st.session_state.is_in_walkthrough:
+            full_response += "📚 **Quick References:**\n"
+            for title, url in user_resources:
+                full_response += f"• [{title}]({url})\n"
+                seen_urls.add(url)
+            full_response += "\n---\n\n"
+
+        try:
+            client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+
+            response_stream = client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=formatted_messages,
+                temperature=0.4,
+                stream=True
+            )
+
+            for chunk in response_stream:
+                content = getattr(chunk.choices[0].delta, "content", None)
+                if content:
+                    for char in content:
+                        full_response += char
+                        response_placeholder.markdown(full_response + "▌")
+                        time.sleep(0.003)
+                    
+                    with scroll_placeholder:
+                        components.html("""
+                            <script>
+                                var mainDoc = window.parent.document.querySelector('section.main');
+                                if (mainDoc) { mainDoc.scrollTo(0, mainDoc.scrollHeight); }
+                            </script>
+                        """, height=0, width=0)
+
+            ai_resources = get_math_resources(full_response)
+            new_resources = [res for res in ai_resources if res[1] not in seen_urls]
+
+            if new_resources and not st.session_state.is_in_walkthrough:
+                full_response += "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
+                for title, url in new_resources:
                     full_response += f"• [{title}]({url})\n"
-                    seen_urls.add(url)
-                full_response += "\n---\n\n"
 
-            try:
-                client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+            response_placeholder.markdown(full_response)
+            scroll_placeholder.empty()
 
-                response_stream = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=formatted_messages,
-                    temperature=0.4,
-                    stream=True
-                )
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": full_response
+            })
+            
+            log_communication(user_query, full_response)
 
-                for chunk in response_stream:
-                    content = getattr(chunk.choices[0].delta, "content", None)
-                    if content:
-                        for char in content:
-                            full_response += char
-                            response_placeholder.markdown(full_response + "▌")
-                            time.sleep(0.003)
-                        
-                        with scroll_placeholder:
-                            components.html("""
-                                <script>
-                                    var mainDoc = window.parent.document.querySelector('section.main');
-                                    if (mainDoc) { mainDoc.scrollTo(0, mainDoc.scrollHeight); }
-                                </script>
-                            """, height=0, width=0)
-
-                ai_resources = get_math_resources(full_response)
-                new_resources = [res for res in ai_resources if res[1] not in seen_urls]
-
-                if new_resources and not st.session_state.is_in_walkthrough:
-                    full_response += "\n\n---\n💡 **Related Study Guides based on our conversation:**\n"
-                    for title, url in new_resources:
-                        full_response += f"• [{title}]({url})\n"
-
-                response_placeholder.markdown(full_response)
-                scroll_placeholder.empty()
-
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": full_response
-                })
-                
-                log_communication(user_query, full_response)
-
-            except Exception as e:
-                st.error(lang["error_msg"])
-                st.info(str(e))
+        except Exception as e:
+            st.error(lang["error_msg"])
+            st.info(str(e))
