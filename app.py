@@ -301,7 +301,7 @@ if len(st.session_state.messages) > 0:
         st.write("---")
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("🏁 End Conversation & Leave Feedback", use_container_width=True):
+            if st.button("⭐ Rate BC TigerMath Chatbot", use_container_width=True):
                 st.session_state.session_ended = True
                 st.rerun()
 
