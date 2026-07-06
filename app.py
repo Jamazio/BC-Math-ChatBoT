@@ -485,8 +485,9 @@ CRITICAL LANGUAGE REQUIREMENT:
 📐 MATHEMATICS DIRECTIVES:
 - CRITICAL MATH FORMATTING: Streamlit's math parser will break if you format math poorly. You MUST adhere to these exact rules:
   1. ALWAYS put display equations ($$) on their own separate lines, surrounded by blank lines. 
-  2. NEVER put regular conversational text inside a LaTeX block.
-  3. ALWAYS ensure block environments like \\begin{{aligned}} have a matching \\end{{aligned}}. Do not output partial or broken LaTeX.
+  2. ALWAYS use inline LaTeX for ANY math expressions, variables, or exponents in standard text (e.g., write `$2^3$` instead of `2^3`, and write `$x$` instead of `x`).
+  3. NEVER put regular conversational text inside a LaTeX block.
+  4. ALWAYS ensure block environments like \\begin{{aligned}} have a matching \\end{{aligned}}. Do not output partial or broken LaTeX.
 - EXPLAINING FORMULAS: When the user asks for a formula, introduce it briefly, skip a line, write the formula cleanly in ($$) block format, skip another line, and then provide your conceptual breakdown. 
 - WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!" (or a warm equivalent), and ask what they want to tackle next. Do NOT serve up an unprompted mathematical problem or transition to another question automatically. Stop immediately and let the user decide.
 - TONAL SENSITIVITY & EMBEDDED EMPATHY: NEVER use phrases like "easy", "simple", "easy peasy", "piece of cake", "basic", or imply a problem is trivial. Treat every math question with complete professional respect, validation, and encouragement. Never minimize the difficulty of any equation or concept.
@@ -502,13 +503,12 @@ CRITICAL LANGUAGE REQUIREMENT:
             formatted_messages.append({"role": msg["role"], "content": msg["content"]})
 
     if st.session_state.is_in_walkthrough:
-        if "next" in user_query.lower() or st.session_state.walkthrough_step == 1:
-            if st.session_state.walkthrough_step <= 3:
-                formatted_messages[-1]["content"] = f"We are on Slide {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Provide ONLY text corresponding to step #{st.session_state.walkthrough_step}. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
-            elif st.session_state.walkthrough_step == 4:
-                formatted_messages[-1]["content"] = "Generate Slide 4: Explain the 'Explore Math Topics & Formulas' dropdown tool on the dashboard screen. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
-            elif st.session_state.walkthrough_step == 5:
-                formatted_messages[-1]["content"] = "Generate Slide 5: Explain how to change UI dialects or write custom styling tags under 'Language & Style Settings' in the sidebar. Congratulate them on finishing."
+        if st.session_state.walkthrough_step <= 3:
+            formatted_messages[-1]["content"] = f"We are on Slide {st.session_state.walkthrough_step} of the {st.session_state.active_guide}. Provide ONLY text corresponding to step #{st.session_state.walkthrough_step}. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
+        elif st.session_state.walkthrough_step == 4:
+            formatted_messages[-1]["content"] = "Generate Slide 4: Explain the 'Explore Math Topics & Formulas' dropdown tool on the dashboard screen. Remember to include the explicit phrase: 👉 **Type 'Next' to continue.**"
+        elif st.session_state.walkthrough_step == 5:
+            formatted_messages[-1]["content"] = "Generate Slide 5: Explain how to change UI dialects or write custom styling tags under 'Language & Style Settings' in the sidebar. Congratulate them on finishing."
 
     with st.chat_message("assistant"):
         response_placeholder = st.empty()
