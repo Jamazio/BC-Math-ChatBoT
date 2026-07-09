@@ -294,7 +294,32 @@ for message in st.session_state.messages:
 # =====================================
 # 12. INLINE CHAT FEEDBACK FORM
 # =====================================
-if len(st.session_state.messages) > 0:
+# Determine if conversation is ready for feedback (user solved it or is leaving)
+ready_for_feedback = False
+
+if len(st.session_state.messages) > 1:
+    last_bot_msg = ""
+    last_user_msg = ""
+    
+    # Extract the most recent bot and user messages
+    for msg in reversed(st.session_state.messages):
+        if msg["role"] == "assistant" and not last_bot_msg:
+            last_bot_msg = msg["content"].lower()
+        elif msg["role"] == "user" and not last_user_msg:
+            last_user_msg = msg["content"].lower()
+            
+    # Trigger 1: Bot indicates the student got the answer correct
+    success_phrases = ["correct!", "that's right", "great job", "spot on", "excellent", "exactly right"]
+    if any(phrase in last_bot_msg for phrase in success_phrases):
+        ready_for_feedback = True
+        
+    # Trigger 2: User indicates they are finished
+    ending_phrases = ["thanks", "thank you", "done", "bye", "finished", "goodbye", "that's it"]
+    if any(phrase in last_user_msg for phrase in ending_phrases):
+        ready_for_feedback = True
+
+# Show rating button contextually, OR lock it open if they clicked it
+if ready_for_feedback or st.session_state.session_ended:
     
     # Show the End Session button if they haven't clicked it yet
     if not st.session_state.session_ended:
@@ -489,7 +514,7 @@ CRITICAL LANGUAGE REQUIREMENT:
   3. NEVER put regular conversational text inside a LaTeX block.
   4. ALWAYS ensure block environments like \\begin{{aligned}} have a matching \\end{{aligned}}. Do not output partial or broken LaTeX.
 - EXPLAINING FORMULAS: When the user asks for a formula, introduce it briefly, skip a line, write the formula cleanly in ($$) block format, skip another line, and then provide your conceptual breakdown. 
-- WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!" (or a warm equivalent), and ask what they want to tackle next. Do NOT serve up an unprompted mathematical problem or transition to another question automatically. Stop immediately and let the user decide.
+- WHEN THE USER GETS IT RIGHT: Immediately validate them, say "Correct!" (or a warm equivalent), and ask what they want to tackle next. Tell them if they are finished for now, they can click the "⭐ Rate BC TigerMath AI" button that has appeared below to leave feedback! Do NOT serve up an unprompted mathematical problem or transition to another question automatically. Stop immediately and let the user decide.
 - TONAL SENSITIVITY & EMBEDDED EMPATHY: NEVER use phrases like "easy", "simple", "easy peasy", "piece of cake", "basic", or imply a problem is trivial. Treat every math question with complete professional respect, validation, and encouragement. Never minimize the difficulty of any equation or concept.
 - If they make an error, point out the breakdown in logic gently.
 """
