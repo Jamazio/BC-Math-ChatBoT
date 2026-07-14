@@ -8,6 +8,9 @@ import os
 import uuid
 from datetime import datetime
 
+# Get the exact directory where app.py lives to prevent path errors
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # =====================================
 # 1. CORE DATA FUNCTIONS (Supabase & OneDrive)
 # =====================================
@@ -20,11 +23,25 @@ def init_supabase() -> Client:
 supabase = init_supabase()
 
 def load_survey_questions(filepath='survey_questions.json'):
+    # FIX: Explicitly target the file inside the project folder
+    full_path = os.path.join(BASE_DIR, filepath)
     try:
-        with open(filepath, 'r') as file:
+        with open(full_path, 'r', encoding='utf-8') as file:
             return json.load(file)
-    except FileNotFoundError:
-        return []
+    except Exception:
+        # Fallback fields if the file is locked or corrupted
+        return [
+            {
+                "id": "rating", 
+                "type": "scale", 
+                "question": "On a scale of 1 to 5, how helpful was the BC TigerMath AI today?"
+            },
+            {
+                "id": "comments", 
+                "type": "text", 
+                "question": "Any brief feedback on your experience or how we can improve?"
+            }
+        ]
 
 def save_feedback(feedback_data):
     """Expects a list of dictionaries mapped to student_feedback columns"""
@@ -228,8 +245,10 @@ st.write("---")
 # =====================================
 @st.cache_data(ttl=3600)
 def load_verified_campus_data():
+    # FIX: Use explicit absolute pathing
+    full_path = os.path.join(BASE_DIR, "benedict_info.txt")
     try:
-        with open("benedict_info.txt", "r", encoding="utf-8") as file:
+        with open(full_path, "r", encoding="utf-8") as file:
             return file.read()
     except FileNotFoundError:
         return "No supplementary historical documents found."
@@ -254,14 +273,15 @@ def get_math_resources(text):
 # =====================================
 # 9. PRE-LOAD TRAINING GUIDES
 # =====================================
+# FIX: Adjusted all guide text loaders to secure paths
 try:
-    with open("student_guides.txt", "r", encoding="utf-8") as f:
+    with open(os.path.join(BASE_DIR, "student_guides.txt"), "r", encoding="utf-8") as f:
         student_training_guide = f.read()
 except:
     student_training_guide = "No student guides file found."
 
 try:
-    with open("faculty_guides.txt", "r", encoding="utf-8") as f:
+    with open(os.path.join(BASE_DIR, "faculty_guides.txt"), "r", encoding="utf-8") as f:
         faculty_training_guide = f.read()
 except:
     faculty_training_guide = "No faculty guides file found."
@@ -294,34 +314,27 @@ for message in st.session_state.messages:
 # =====================================
 # 12. INLINE CHAT FEEDBACK FORM
 # =====================================
-# Determine if conversation is ready for feedback (user solved it or is leaving)
 ready_for_feedback = False
 
 if len(st.session_state.messages) > 1:
     last_bot_msg = ""
     last_user_msg = ""
     
-    # Extract the most recent bot and user messages
     for msg in reversed(st.session_state.messages):
         if msg["role"] == "assistant" and not last_bot_msg:
             last_bot_msg = msg["content"].lower()
         elif msg["role"] == "user" and not last_user_msg:
             last_user_msg = msg["content"].lower()
             
-    # Trigger 1: Bot indicates the student got the answer correct
     success_phrases = ["correct!", "that's right", "great job", "spot on", "excellent", "exactly right"]
     if any(phrase in last_bot_msg for phrase in success_phrases):
         ready_for_feedback = True
         
-    # Trigger 2: User indicates they are finished
     ending_phrases = ["thanks", "thank you", "done", "bye", "finished", "goodbye", "that's it"]
     if any(phrase in last_user_msg for phrase in ending_phrases):
         ready_for_feedback = True
 
-# Show rating button contextually, OR lock it open if they clicked it
 if ready_for_feedback or st.session_state.session_ended:
-    
-    # Show the End Session button if they haven't clicked it yet
     if not st.session_state.session_ended:
         st.write("---")
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -330,9 +343,7 @@ if ready_for_feedback or st.session_state.session_ended:
                 st.session_state.session_ended = True
                 st.rerun()
 
-    # Present the survey directly in chat if session ended
     if st.session_state.session_ended:
-        # Check if they haven't submitted yet -> Show Form
         if not st.session_state.feedback_submitted:
             with st.chat_message("assistant"):
                 st.markdown("### ⭐ Rate BC TigerMath AI")
@@ -373,14 +384,10 @@ if ready_for_feedback or st.session_state.session_ended:
                                 })
                                 
                             save_feedback(feedback_payload)
-                            
-                            # Set tracker flag to True and rerun to make form disappear!
                             st.session_state.feedback_submitted = True
                             st.rerun()
                 else:
                     st.info("Survey questions not found.")
-        
-        # If they already submitted -> Hide form and display clean success message
         else:
             with st.chat_message("assistant"):
                 st.success("🎉 Rating submitted! Thank you for your feedback. Have a great day! 🐅")
